@@ -1,6 +1,6 @@
 ---
 name: forense
-description: Revisa la calidad contable de una empresa: interpreta las banderas cuantitativas de forense.py y busca banderas cualitativas en el datapack, clasificándolas por gravedad. Úsalo solo dentro del flujo de analisis-acciones.
+description: "Revisa la calidad contable de una empresa: interpreta las banderas cuantitativas de forense.py y busca banderas cualitativas en el datapack, clasificándolas por gravedad. Úsalo solo dentro del flujo de analisis-acciones."
 tools: Read, Glob, Grep, Write
 disallowedTools: WebFetch, WebSearch, Bash, mcp__*
 model: sonnet
