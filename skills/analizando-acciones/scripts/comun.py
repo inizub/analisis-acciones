@@ -37,6 +37,39 @@ class ErrorDatos(Exception):
         self.causa = causa
 
 
+MODOS = ("completo", "rapido", "degradado")
+NIVELES_GRAVES = ("grave", "invalidante")
+
+
+def analistas_de_modo(modo: str) -> list[str]:
+    """Analistas cuyas salidas hay que agregar: A y B en modo completo, el neutral N en rápido y degradado."""
+    if modo not in MODOS:
+        raise ValueError(f"Modo desconocido: {modo} (válidos: {MODOS})")
+    return ["A", "B"] if modo == "completo" else ["N"]
+
+
+def hash_config() -> str:
+    return sha256_archivo(RUTA_CONFIG)
+
+
+def hash_prompts() -> str:
+    """SHA-256 del conjunto de prompts: SKILL.md, references/ y agents/ (en orden alfabético de ruta)."""
+    raiz = DIR_SKILL.parents[1]
+    archivos = sorted(
+        [*DIR_SKILL.glob("SKILL.md"), *(DIR_SKILL / "references").glob("*.md"), *(raiz / "agents").glob("*.md")]
+    )
+    h = hashlib.sha256()
+    for a in archivos:
+        h.update(a.relative_to(raiz).as_posix().encode("utf-8"))
+        h.update(a.read_bytes())
+    return "sha256:" + h.hexdigest()
+
+
+def version_plugin() -> str:
+    ruta = DIR_SKILL.parents[1] / ".claude-plugin" / "plugin.json"
+    return json.loads(ruta.read_text(encoding="utf-8"))["version"] if ruta.exists() else "0.0.0"
+
+
 def cargar_config(ruta: Path | None = None) -> dict:
     with open(ruta or RUTA_CONFIG, encoding="utf-8") as f:
         return yaml.safe_load(f)

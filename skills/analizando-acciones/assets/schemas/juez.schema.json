@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "juez.schema.json",
+  "title": "juez",
+  "description": "Salida del juez (modo completo) o síntesis del orquestador (modo rápido): razones, mejor contraargumento, criterios de invalidación y veredicto sobre cada objeción. No fija probabilidades.",
+  "type": "object",
+  "required": ["ticker", "fecha_analisis", "razones", "criterios_invalidacion"],
+  "properties": {
+    "ticker": {"type": "string"},
+    "fecha_analisis": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "razones": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string", "minLength": 10, "maxLength": 400}},
+    "mejor_contraargumento": {"type": ["string", "null"], "maxLength": 1000},
+    "criterios_invalidacion": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dato", "umbral", "efecto"],
+        "properties": {
+          "dato": {"type": "string", "minLength": 3, "maxLength": 200},
+          "umbral": {"type": ["string", "number"]},
+          "efecto": {"type": "string", "minLength": 3, "maxLength": 300}
+        }
+      }
+    },
+    "desacuerdos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tema", "posicion_A", "posicion_B"],
+        "properties": {
+          "tema": {"type": "string", "maxLength": 200},
+          "posicion_A": {"type": "string", "maxLength": 400},
+          "posicion_B": {"type": "string", "maxLength": 400}
+        }
+      }
+    },
+    "objeciones_verificadas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "veredicto", "motivo", "dato_ref"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^O[0-9]+$"},
+          "veredicto": {"enum": ["validada", "rechazada"]},
+          "motivo": {"type": "string", "minLength": 5, "maxLength": 600},
+          "dato_ref": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

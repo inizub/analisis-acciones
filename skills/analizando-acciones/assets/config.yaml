@@ -1,5 +1,5 @@
 # Parámetros versionados del plugin. Cambiar un valor exige subir `version`.
-version: 2
+version: 3
 modelos: {datos: sonnet, analista: sonnet, forense: sonnet, red_team_fallback: sonnet, juez: opus}
 red_team_externo: {proveedor: gemini, modelo: "<configurar>", activo: false}
 eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: VWCE.DE, moneda: EUR}
@@ -33,6 +33,46 @@ router: {biotech_ingresos_max_musd: 50, ebit_negativo_min_anios: 2, ebit_ventana
 tasas_base: {clases_musd: [100, 500, 2000, 5000, 10000, 50000], ventas_min_musd: 100, winsor: [1, 99],
              anio_inicio: 2009, anio_fin: 2025, z_evidencia: 2, z_imposible: 3}
 datos: {discrepancia_max: 0.02, precio_max_dias: 3}
+
+# Checklist (gate.py). Rutas de campos con "/" como separador (las claves de Damodaran contienen puntos).
+gate:
+  cobertura_bajista_min: 1.5
+  cobertura_sin_dato: aviso      # aviso | fallo: qué hacer si no hay gasto por intereses y sí hay deuda
+  campos_criticos:
+    # Heurística propia (la spec no enumera los campos): lo que el motor y el checklist necesitan para cada ruta.
+    _comunes: [precios/precio, precios/precio_eur, precios/fx_eur, damodaran/erp_madura]
+    general: [fundamentales/ingresos, fundamentales/beneficio_operativo, fundamentales/acciones_diluidas,
+              fundamentales/deuda_total, fundamentales/caja, "damodaran/sector/valores/betas.beta_desapalancada"]
+    crecimiento_perdidas: [fundamentales/ingresos, fundamentales/beneficio_operativo, fundamentales/fco,
+                           fundamentales/acciones_diluidas, fundamentales/deuda_total, fundamentales/caja,
+                           "damodaran/sector/valores/betas.beta_desapalancada"]
+    ciclica: [fundamentales/ingresos, fundamentales/beneficio_operativo, fundamentales/acciones_diluidas,
+              fundamentales/deuda_total, fundamentales/caja, "damodaran/sector/valores/betas.beta_desapalancada"]
+    banco_credito: [fundamentales/ingresos, fundamentales/beneficio_neto, fundamentales/patrimonio,
+                    fundamentales/acciones_diluidas, fundamentales/prestamos, fundamentales/depositos,
+                    banca/cet1, banca/cet1_requisito]
+    biotech_precomercial: [fundamentales/ingresos, fundamentales/fco, fundamentales/caja, fundamentales/deuda_total,
+                           fundamentales/acciones_diluidas]
+    holding: [fundamentales/ingresos, fundamentales/acciones_diluidas, fundamentales/deuda_total, fundamentales/caja,
+              segmentos, "damodaran/sector/valores/betas.beta_desapalancada"]
+    fuera_de_alcance: []
+
+# Baselines (baselines.py). B3 compara con el promedio sectorial de Damodaran, que no trae terciles: el umbral
+# de "barato" y "caro" es una razón frente a ese promedio (heurístico).
+baselines:
+  b2: {superior: 0.55, inferior: 0.40}
+  b3: {barato: 0.55, medio: 0.45, caro: 0.40}
+  razon_barato: 0.8
+  razon_caro: 1.2
+  b0_e4: 0.5
+
+puntuacion:
+  clip_log: [0.02, 0.98]
+  min_n_calibracion: 20
+  min_n_dm: 10
+  h_pasos: {E0: 6, E1: 12, E2: 36, E3: 12, E4: 12}   # solapamiento de las predicciones (cadencia mensual)
+
+diario: {anular_si: [opa, delisting, escision, sin_datos], dias_espera_datos: 7, dias_espera_e4: 20}
 
 # Parámetros operativos de las fuentes de datos.
 cache_ttl_horas: {companyfacts: 24, submissions: 24, tickers: 24, precios: 12, damodaran: 720, macro: 168, frames: 720}

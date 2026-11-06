@@ -224,6 +224,19 @@ class ClientePrecios:
         datos, _ = self.cache.obtener_o_calcular("precios", f"fund:{ticker}", pedir)
         return datos
 
+    def series_eur(self, ticker: str, benchmark: str = "VWCE.DE") -> tuple[pd.Series, pd.Series]:
+        """Cierres ajustados (retorno total) de la acción y del benchmark, convertidos a EUR. Para resolver eventos."""
+        info = self._info_rapida(ticker)
+        if not info.get("moneda"):
+            raise comun.ErrorDatos(f"yfinance no da la moneda de {ticker}", "source_down")
+        moneda, divisor = normalizar_moneda(info["moneda"])
+        moneda_b, divisor_b = normalizar_moneda(self._info_rapida(benchmark).get("moneda") or "EUR")
+        fx = serie_desde_dict(self._historia(ticker_fx(moneda)), "cierre") if ticker_fx(moneda) else None
+        fx_b = serie_desde_dict(self._historia(ticker_fx(moneda_b)), "cierre") if ticker_fx(moneda_b) else None
+        accion = a_eur(serie_desde_dict(self._historia(ticker), "cierre_aj"), fx, divisor)
+        bench = a_eur(serie_desde_dict(self._historia(benchmark), "cierre_aj"), fx_b, divisor_b)
+        return accion, bench
+
     def obtener(self, ticker: str, benchmark: str = "VWCE.DE") -> dict:
         obtenido = comun.ahora_iso()
         desconocidos: list[dict] = []

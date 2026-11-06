@@ -24,7 +24,9 @@ TOLERANCIA_SUMA = 1e-6
 
 PATRONES = [
     (re.compile(r"^datapack(_base)?\.json$"), "datapack"),
-    (re.compile(r"^analista_[ABN]\.json$"), "analista"),
+    (re.compile(r"^analista_(A|B|N|B1)\.json$"), "analista"),
+    (re.compile(r"^forense\.json$"), "forense"),
+    (re.compile(r"^(juez|sintesis)\.json$"), "juez"),
     (re.compile(r"^objeciones\.json$"), "objeciones"),
     (re.compile(r"^ajustes\.json$"), "ajustes"),
     (re.compile(r"^verdict\.json$"), "verdict"),

@@ -15,8 +15,8 @@ def ejemplo(nombre):
     return json.loads((EJEMPLOS / nombre).read_text(encoding="utf-8"))
 
 
-def test_hay_los_cinco_esquemas_y_son_validos():
-    assert validar.esquemas_disponibles() == ["ajustes", "analista", "datapack", "objeciones", "verdict"]
+def test_hay_los_siete_esquemas_y_son_validos():
+    assert validar.esquemas_disponibles() == ["ajustes", "analista", "datapack", "forense", "juez", "objeciones", "verdict"]
     for nombre in validar.esquemas_disponibles():
         esquema = comun.leer_json(comun.DIR_SCHEMAS / f"{nombre}.schema.json")
         assert esquema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
@@ -25,8 +25,9 @@ def test_hay_los_cinco_esquemas_y_son_validos():
 
 @pytest.mark.parametrize("archivo,esquema", [
     ("datapack_base.json", "datapack"), ("datapack.json", "datapack"), ("analista_A.json", "analista"),
-    ("analista_N.json", "analista"), ("objeciones.json", "objeciones"), ("ajustes.json", "ajustes"),
-    ("verdict.json", "verdict"), ("analista_C.json", None), ("otro.json", None),
+    ("analista_N.json", "analista"), ("analista_B1.json", "analista"), ("objeciones.json", "objeciones"),
+    ("ajustes.json", "ajustes"), ("verdict.json", "verdict"), ("forense.json", "forense"), ("juez.json", "juez"),
+    ("sintesis.json", "juez"), ("analista_C.json", None), ("otro.json", None),
 ])
 def test_esquema_para(archivo, esquema):
     assert validar.esquema_para(f"runs/X/2026-11-06/{archivo}") == esquema
@@ -173,3 +174,24 @@ def test_cli(tmp_path, capsys):
     assert validar.main([str(tmp_path / "raro.json")]) == 3
     (tmp_path / "verdict.json").write_text("{no json", encoding="utf-8")
     assert validar.main([str(tmp_path / "verdict.json")]) == 3
+
+
+def test_forense_y_juez_validos_y_con_errores():
+    from artefactos import forense, sintesis
+    assert validar.validar_objeto(forense(), "forense") == []
+    assert validar.validar_objeto(sintesis(), "juez") == []
+    f = forense()
+    f["banderas"][0]["nivel"] = "critica"
+    assert validar.validar_objeto(f, "forense")
+    f = forense()
+    del f["banderas"][0]["dato_ref"]
+    assert validar.validar_objeto(f, "forense")
+    s = sintesis()
+    s["razones"] = s["razones"][:2]
+    assert validar.validar_objeto(s, "juez")
+    s = sintesis()
+    s["objeciones_verificadas"][0]["veredicto"] = "dudosa"
+    assert validar.validar_objeto(s, "juez")
+    s = sintesis()
+    s["criterios_invalidacion"] = []
+    assert validar.validar_objeto(s, "juez") == []        # el mínimo de 2 lo exige el checklist, no el esquema
