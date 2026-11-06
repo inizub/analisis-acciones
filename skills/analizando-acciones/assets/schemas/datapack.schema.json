@@ -63,6 +63,13 @@
         "crecimiento_depositos": {"$ref": "#/$defs/serie_o_cifra"}
       }
     },
+    "deuda": {
+      "type": "object",
+      "properties": {
+        "tipo_variable_pct": {"$ref": "#/$defs/cifra"},
+        "vencimientos_24m": {"$ref": "#/$defs/cifra"}
+      }
+    },
     "hechos_recientes": {"type": "array", "items": {"$ref": "#/$defs/nota"}},
     "cambios": {
       "type": "object",
@@ -165,7 +172,9 @@
         "forma_anual": {"type": ["string", "null"]},
         "moneda_informe": {"type": ["string", "null"]},
         "anios_estados": {"type": "integer", "minimum": 0},
-        "pais_negocio": {"type": ["string", "null"]}
+        "pais_negocio": {"type": ["string", "null"]},
+        "holding_declarada": {"type": "boolean"},
+        "en_concurso": {"type": "boolean"}
       }
     },
     "precios": {

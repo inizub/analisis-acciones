@@ -25,6 +25,20 @@ N_MIN = 100
 TOPE_APROBACION = 0.95
 
 
+def cargar_tabla_bio(ruta: str | Path | None = None, grupo: str = "area") -> list[dict]:
+    """Filas {area, transicion, p, n} de bio_pos_2011_2020.csv (probabilidades de transición, tipo POS) de un grupo.
+    Grupos: area, oncologia_vs_no, oncologia_subtipo, prevalencia, clase_fa, modalidad, biomarcadores.
+    La categoría `todas` es el promedio de todas las indicaciones."""
+    import csv
+
+    ruta = Path(ruta) if ruta else Path(__file__).resolve().parents[2] / "assets" / "bio_pos_2011_2020.csv"
+    with open(ruta, encoding="utf-8") as f:
+        filas = [{"area": r["categoria"], "transicion": r["transicion"], "p": float(r["p"]), "n": int(r["n"])}
+                 for r in csv.DictReader(f) if r["grupo"] == grupo and r["tipo"] == "POS"]
+    exigir(filas, f"bio_pos_2011_2020.csv sin filas POS para el grupo '{grupo}'")
+    return filas
+
+
 def probabilidad_transicion(tabla: Sequence[dict], area: str, transicion: str) -> dict:
     filas = [f for f in tabla if f["transicion"] == transicion]
     exigir(filas, f"tabla sin transición {transicion}")

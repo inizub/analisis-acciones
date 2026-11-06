@@ -28,6 +28,7 @@ from datos.cache import CacheDisco, TokenBucket, con_backoff  # noqa: E402
 URL_TICKERS = "https://www.sec.gov/files/company_tickers.json"
 URL_SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik}.json"
 URL_FACTS = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+URL_FRAME = "https://data.sec.gov/api/xbrl/frames/{tax}/{concepto}/{unidad}/{periodo}.json"
 
 FORMAS_ANUALES = {"10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/A"}
 
@@ -472,6 +473,23 @@ class ClienteEdgar:
 
     def companyfacts(self, cik: str) -> tuple[dict, dict]:
         return self._cacheado("companyfacts", URL_FACTS.format(cik=cik))
+
+    def frame(self, concepto: str, unidad: str, periodo: str, taxonomia: str = "us-gaap") -> list[list]:
+        """Hechos de todos los emisores para un concepto y periodo (p. ej. CY2019 o CY2019Q4I).
+        Devuelve filas reducidas [cik, valor, inicio, fin]. Periodo inexistente → lista vacía."""
+        url = URL_FRAME.format(tax=taxonomia, concepto=concepto, unidad=unidad, periodo=periodo)
+
+        def calcular() -> list[list]:
+            datos = self._get(url)
+            return [[d["cik"], d["val"], d.get("start"), d["end"]] for d in datos.get("data", [])]
+
+        try:
+            filas, _ = self.cache.obtener_o_calcular("frames", url, calcular)
+        except comun.ErrorDatos as e:
+            if e.causa == "not_covered":
+                return []
+            raise
+        return filas
 
     def hechos_informe(self, informe: dict, tax: str) -> tuple[dict, dict]:
         """Hechos XBRL de un informe concreto vía edgartools (para cuando companyfacts va retrasado)."""

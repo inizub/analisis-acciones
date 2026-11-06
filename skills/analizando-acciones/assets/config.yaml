@@ -1,5 +1,5 @@
 # Parámetros versionados del plugin. Cambiar un valor exige subir `version`.
-version: 1
+version: 2
 modelos: {datos: sonnet, analista: sonnet, forense: sonnet, red_team_fallback: sonnet, juez: opus}
 red_team_externo: {proveedor: gemini, modelo: "<configurar>", activo: false}
 eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: VWCE.DE, moneda: EUR}
@@ -7,12 +7,35 @@ agregacion: {tasa_base_exceso: 0.45, k: 0.4, clip_E3_E4: [0.05, 0.95]}
 veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_bear: 0.50, no_atractiva_p_E1: 0.40, z_no_atractiva: 3}
 escenarios: {T_conv_anios: 3, mc_sims: 100000, t_nu: 4, semilla: 42}
 tasas_base_k: {crecimiento_ventas: 0.3, margen_operativo: 0.6, roic_roe: 0.6, margen_bruto: 0.8}
-forense: {fco_bn_min: 0.8, devengos_max: 0.10, cxc_gap_pp: 10, inv_gap_pp: 10, sbc_max: 0.10, dilucion_max: 0.03, goodwill_max: 0.40, cobertura_min: 3}
-macro: {tipos_umbral_pb: 25, tipos_ventana_sem: 26, hy_percentiles: [30, 70]}
+forense: {fco_bn_min: 0.8, devengos_max: 0.10, cxc_gap_pp: 10, inv_gap_pp: 10, sbc_max: 0.10, dilucion_max: 0.03, goodwill_max: 0.40, cobertura_min: 3,
+          gap_anios: 2, dilucion_anios: 3, fco_bn_anios: 3, banca_tendencia_anios: 2, banca_cet1_margen_pp: 1}
+# La spec pide el percentil a 10 años del spread HY, pero FRED solo ofrece 3 años de BAMLH0A0HYM2 (desde 2023-11).
+# El etiquetado de crédito usa BAA10Y (spread Baa−10 años, historia desde 2000); el HY se reporta como dato informativo.
+macro:
+  tipos_umbral_pb: 25
+  tipos_ventana_sem: 26
+  hy_percentiles: [30, 70]
+  credito_serie: BAA10Y
+  credito_ventana_anios: 10
+  sensibilidad_anios: 3
+  max_dias_regimen: 7
+  fred: {tipos_10a: DGS10, tipos_2a: DGS2, tipos_3m: DGS3MO, credito: BAA10Y, hy: BAMLH0A0HYM2}
+  eurusd_fred: DEXUSEU   # USD por EUR
+  # Series FRED de divisas frente al USD, según cómo cotizan.
+  fx_divisa_por_usd: {BRL: DEXBZUS, MXN: DEXMXUS, JPY: DEXJPUS, CNY: DEXCHUS, KRW: DEXKOUS, INR: DEXINUS,
+                      CAD: DEXCAUS, CHF: DEXSZUS, SEK: DEXSDUS, DKK: DEXDNUS, NOK: DEXNOUS}
+  fx_usd_por_divisa: {GBP: DEXUSUK, AUD: DEXUSAL}
+  ecb: {estr: "EST/B.EU000A2X2A25.WT", rendimiento_10a: "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y"}
+# Umbrales del router. Los de ciclicidad y crecimiento son heurísticos (la spec no fija el número).
+router: {biotech_ingresos_max_musd: 50, ebit_negativo_min_anios: 2, ebit_ventana_anios: 3, crecimiento_percentil: 90,
+         ciclica_desv_margen: 0.05, ciclica_min_anios: 7, holding_min_segmentos: 3, holding_peso_min: 0.15,
+         anios_estados_min: 2}
+tasas_base: {clases_musd: [100, 500, 2000, 5000, 10000, 50000], ventas_min_musd: 100, winsor: [1, 99],
+             anio_inicio: 2009, anio_fin: 2025, z_evidencia: 2, z_imposible: 3}
 datos: {discrepancia_max: 0.02, precio_max_dias: 3}
 
 # Parámetros operativos de las fuentes de datos.
-cache_ttl_horas: {companyfacts: 24, submissions: 24, tickers: 24, precios: 12, damodaran: 720, macro: 168}
+cache_ttl_horas: {companyfacts: 24, submissions: 24, tickers: 24, precios: 12, damodaran: 720, macro: 168, frames: 720}
 edgar: {max_peticiones_seg: 8, anios: 10}
 yfinance: {reintentos: 5, espera_base_seg: 2, anios: 5}
 damodaran:
