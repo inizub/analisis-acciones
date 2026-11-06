@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verdict.schema.json",
+  "title": "verdict",
+  "description": "Veredicto final de un análisis. Es también el formato de cada línea del diario de predicciones.",
+  "type": "object",
+  "required": ["id", "created_at", "hash_prev", "skill", "modelos", "ticker", "ruta_sectorial", "independencia", "input_snapshot", "veredicto", "motivo_no_analizable", "valoracion", "agregacion", "preguntas", "razones", "mejor_contraargumento", "criterios_invalidacion", "red_team", "banderas_forenses", "checklist", "baselines", "updates", "resolucion"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Z0-9.\\-]+-\\d{4}-\\d{2}-\\d{2}-[a-z]+$"},
+    "created_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T"},
+    "hash_prev": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+    "skill": {
+      "type": "object",
+      "required": ["version", "hash_prompts", "hash_config", "modo"],
+      "properties": {
+        "version": {"type": "string"},
+        "hash_prompts": {"$ref": "#/$defs/sha"},
+        "hash_config": {"$ref": "#/$defs/sha"},
+        "modo": {"enum": ["completo", "rapido", "degradado"]}
+      }
+    },
+    "modelos": {
+      "type": "object",
+      "properties": {
+        "analista": {"type": "string"},
+        "red_team": {"type": ["string", "null"]},
+        "juez": {"type": ["string", "null"]},
+        "forense": {"type": ["string", "null"]},
+        "datos": {"type": ["string", "null"]}
+      }
+    },
+    "ticker": {"type": "string"},
+    "ruta_sectorial": {"enum": ["general", "crecimiento_perdidas", "ciclica", "banco_credito", "biotech_precomercial", "holding", "fuera_de_alcance", null]},
+    "independencia": {"type": "boolean"},
+    "input_snapshot": {
+      "type": "object",
+      "required": ["precio", "fx_eur", "fuentes", "campos_desconocidos"],
+      "properties": {
+        "precio": {"$ref": "#/$defs/snapshot_valor"},
+        "fx_eur": {"$ref": "#/$defs/snapshot_valor"},
+        "fuentes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["url"],
+            "properties": {"url": {"type": "string"}, "retrieved_at": {"type": ["string", "null"]}, "published_at": {"type": ["string", "null"]}}
+          }
+        },
+        "campos_desconocidos": {
+          "type": "array",
+          "items": {"type": "object", "required": ["campo", "causa"], "properties": {"campo": {"type": "string"}, "causa": {"type": "string"}}}
+        }
+      }
+    },
+    "veredicto": {"enum": ["atractiva", "neutral", "no_atractiva", "no_analizable"]},
+    "motivo_no_analizable": {"type": ["string", "null"]},
+    "valoracion": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["metodo", "escenarios", "reverse_dcf", "exceso_anual_esperado_pp", "rel_12m_p5_p50_p95", "perdida_escenario_bajista"],
+          "properties": {
+            "metodo": {"enum": ["dcf_fcff", "dcf_ingresos", "dcf_normalizado", "excess_return", "rnpv", "sotp"]},
+            "escenarios": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["nombre", "p", "valor"],
+                "properties": {
+                  "nombre": {"enum": ["bajista", "base", "alcista"]},
+                  "analista": {"enum": ["A", "B", "N"]},
+                  "p": {"type": "number", "minimum": 0, "maximum": 1},
+                  "valor": {"type": "number"},
+                  "drivers": {"type": "object"},
+                  "percentiles_tasa_base": {"type": "object"}
+                }
+              }
+            },
+            "reverse_dcf": {
+              "type": "object",
+              "required": ["driver", "valor", "percentil", "sin_raiz"],
+              "properties": {
+                "driver": {"type": "string"},
+                "valor": {"type": ["number", "null"]},
+                "percentil": {"type": ["number", "null"]},
+                "sin_raiz": {"type": "boolean"}
+              }
+            },
+            "exceso_anual_esperado_pp": {"type": "number"},
+            "rel_12m_p5_p50_p95": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
+            "perdida_escenario_bajista": {"type": "number", "minimum": 0}
+          }
+        }
+      ]
+    },
+    "agregacion": {
+      "type": "object",
+      "required": ["tasa_base", "tasa_base_tipo", "k"],
+      "properties": {
+        "p_A": {"type": "object"},
+        "p_B": {"type": "object"},
+        "p_N": {"type": "object"},
+        "p_agg": {"type": "object"},
+        "dispersion": {"type": "object"},
+        "tasa_base": {"type": "number"},
+        "tasa_base_tipo": {"enum": ["heuristica", "calculada"]},
+        "k": {"type": "number"}
+      }
+    },
+    "preguntas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["qid", "texto", "p", "resolve_date", "fuente_resolucion", "anular_si"],
+        "properties": {
+          "qid": {"enum": ["E0", "E1", "E2", "E3", "E4"]},
+          "texto": {"type": "string"},
+          "p": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "resolve_date": {"type": ["string", "null"]},
+          "fuente_resolucion": {"type": "string"},
+          "anular_si": {"type": "array", "items": {"enum": ["opa", "delisting", "escision", "sin_datos"]}}
+        }
+      }
+    },
+    "razones": {"type": "array", "maxItems": 3, "items": {"type": "string"}},
+    "mejor_contraargumento": {"type": ["string", "null"]},
+    "criterios_invalidacion": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dato", "umbral", "efecto"],
+        "properties": {"dato": {"type": "string"}, "umbral": {"type": ["string", "number"]}, "efecto": {"type": "string"}}
+      }
+    },
+    "red_team": {
+      "type": "object",
+      "required": ["fuente", "objeciones"],
+      "properties": {
+        "fuente": {"enum": ["externo", "claude", "ninguno"]},
+        "objeciones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["objecion", "dato_ref", "validada"],
+            "properties": {
+              "objecion": {"type": "string"},
+              "dato_ref": {"type": "string"},
+              "validada": {"type": "boolean"},
+              "ajuste": {"type": ["object", "null"]}
+            }
+          }
+        }
+      }
+    },
+    "banderas_forenses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bandera", "nivel"],
+        "properties": {"bandera": {"type": "string"}, "nivel": {"enum": ["informativa", "grave", "invalidante"]}}
+      }
+    },
+    "checklist": {
+      "type": "object",
+      "required": ["pasa", "fallos"],
+      "properties": {"pasa": {"type": "boolean"}, "fallos": {"type": "array", "items": {"type": "string"}}}
+    },
+    "baselines": {
+      "type": "object",
+      "required": ["B0"],
+      "properties": {
+        "B0": {"type": "number"},
+        "B1": {"type": ["number", "null"]},
+        "B2": {"type": ["number", "null"]},
+        "B3": {"type": ["number", "null"]}
+      }
+    },
+    "updates": {"type": "array"},
+    "resolucion": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"veredicto": {"const": "no_analizable"}}},
+      "then": {"properties": {"motivo_no_analizable": {"type": "string", "minLength": 3}}},
+      "else": {"properties": {"motivo_no_analizable": {"type": "null"}, "valoracion": {"type": "object"}, "preguntas": {"minItems": 5}}}
+    }
+  ],
+  "$defs": {
+    "sha": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "snapshot_valor": {
+      "type": "object",
+      "required": ["valor", "fuente", "ts"],
+      "properties": {
+        "valor": {"type": ["number", "null"]},
+        "moneda": {"type": ["string", "null"]},
+        "fuente": {"type": ["string", "null"]},
+        "ts": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

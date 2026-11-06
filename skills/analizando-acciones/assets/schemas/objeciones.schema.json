@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "objeciones.schema.json",
+  "title": "objeciones",
+  "description": "Salida del red team (externo o subagente). Toda objeción cita un dato_ref.",
+  "type": "object",
+  "required": ["ticker", "fecha_analisis", "fuente", "objeciones", "mejor_contraargumento", "pre_mortem"],
+  "properties": {
+    "ticker": {"type": "string"},
+    "fecha_analisis": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "fuente": {"enum": ["externo", "claude"]},
+    "modelo": {"type": "string"},
+    "objeciones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tipo", "dato_ref", "objecion", "prueba", "impacto_estimado", "severidad"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^O[0-9]+$"},
+          "tipo": {"enum": ["dato_erroneo", "supuesto_implausible", "riesgo_omitido", "contradiccion_interna"]},
+          "dato_ref": {"type": "string", "minLength": 1},
+          "objecion": {"type": "string", "minLength": 10, "maxLength": 800},
+          "prueba": {"type": "string", "minLength": 5, "maxLength": 600},
+          "impacto_estimado": {
+            "type": "object",
+            "required": ["driver", "direccion"],
+            "properties": {
+              "driver": {"type": "string"},
+              "escenario": {"enum": ["bajista", "base", "alcista", "todos"]},
+              "analista": {"enum": ["A", "B", "N", "todos"]},
+              "direccion": {"enum": ["sube", "baja"]},
+              "magnitud": {"type": ["number", "string"]}
+            }
+          },
+          "severidad": {"enum": ["baja", "media", "alta"]}
+        }
+      }
+    },
+    "mejor_contraargumento": {"type": "string", "minLength": 10, "maxLength": 1000},
+    "pre_mortem": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 10, "maxLength": 400}}
+  }
+}

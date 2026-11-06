@@ -1,0 +1,23 @@
+{
+  "ticker": "XYZ",
+  "fecha_analisis": "2026-11-06",
+  "fuente": "claude",
+  "modelo": "sonnet",
+  "objeciones": [
+    {
+      "id": "O1",
+      "tipo": "supuesto_implausible",
+      "dato_ref": "fundamentales.ingresos",
+      "objecion": "El escenario alcista supone un crecimiento del 14 % que solo alcanzó el 20 % de la clase de referencia.",
+      "prueba": "Comparar con el percentil de tasas_base.crecimiento_ventas_5a",
+      "impacto_estimado": {"driver": "crecimiento_ingresos", "escenario": "alcista", "analista": "A", "direccion": "baja", "magnitud": 0.03},
+      "severidad": "media"
+    }
+  ],
+  "mejor_contraargumento": "El mercado ya descuenta el crecimiento del escenario base; el margen de seguridad es pequeño.",
+  "pre_mortem": [
+    "La competencia rebaja precios y la retención cae.",
+    "El ciclo de gasto en TI se frena.",
+    "La SBC diluye más de lo previsto."
+  ]
+}

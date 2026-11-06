@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "analista.schema.json",
+  "title": "analista",
+  "description": "Salida del agente analista-fundamental. Drivers y probabilidades por escenario; no contiene probabilidades de eventos.",
+  "type": "object",
+  "required": ["ticker", "fecha_analisis", "encuadre", "ruta", "tipologia", "narrativa", "moat", "gestion", "escenarios", "lectura_dcf_inverso", "catalizador", "pre_mortem", "metrica_e4"],
+  "properties": {
+    "ticker": {"type": "string"},
+    "fecha_analisis": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "encuadre": {"enum": ["A", "B", "N"]},
+    "ruta": {"enum": ["general", "crecimiento_perdidas", "ciclica", "banco_credito", "biotech_precomercial", "holding"]},
+    "confirmacion_ruta": {
+      "type": "object",
+      "required": ["mantiene"],
+      "properties": {
+        "mantiene": {"type": "boolean"},
+        "ruta_propuesta": {"type": "string"},
+        "dato_ref": {"type": "string"},
+        "motivo": {"type": "string", "maxLength": 400}
+      }
+    },
+    "tipologia": {"enum": ["crecimiento_lento", "solida", "crecimiento_rapido", "ciclica", "recuperacion", "activos_ocultos"]},
+    "narrativa": {"type": "string", "minLength": 20, "maxLength": 1200},
+    "moat": {
+      "type": "object",
+      "required": ["fuente", "amplitud", "evidencia"],
+      "properties": {
+        "fuente": {"enum": ["activos_intangibles", "costes_cambio", "efecto_red", "ventaja_costes", "escala_eficiente", "ninguna"]},
+        "amplitud": {"enum": ["ninguno", "estrecho", "amplio"]},
+        "evidencia": {"type": "array", "items": {"$ref": "#/$defs/evidencia"}}
+      }
+    },
+    "gestion": {
+      "type": "object",
+      "required": ["valoracion", "evidencia"],
+      "properties": {
+        "valoracion": {"enum": ["buena", "adecuada", "deficiente", "sin_evidencia"]},
+        "evidencia": {"type": "array", "items": {"$ref": "#/$defs/evidencia"}}
+      }
+    },
+    "escenarios": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/escenario"}
+    },
+    "lectura_dcf_inverso": {
+      "type": "object",
+      "required": ["expectativa_implicita", "opinion", "argumento"],
+      "properties": {
+        "expectativa_implicita": {"type": "string", "maxLength": 400},
+        "opinion": {"enum": ["exigente", "razonable", "conservadora"]},
+        "argumento": {"type": "string", "maxLength": 800}
+      }
+    },
+    "catalizador": {
+      "type": "object",
+      "required": ["descripcion", "horizonte_meses"],
+      "properties": {
+        "descripcion": {"type": "string", "maxLength": 400},
+        "horizonte_meses": {"type": "integer", "minimum": 1, "maximum": 60}
+      }
+    },
+    "pre_mortem": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string", "minLength": 10, "maxLength": 400}},
+    "metrica_e4": {
+      "type": "object",
+      "required": ["metrica", "valor_base", "unidad", "periodo"],
+      "properties": {
+        "metrica": {"enum": ["crecimiento_ingresos", "roe", "hito_clinico"]},
+        "valor_base": {"type": "number"},
+        "unidad": {"type": "string"},
+        "periodo": {"type": "string", "maxLength": 40},
+        "descripcion": {"type": "string", "maxLength": 300}
+      }
+    }
+  },
+  "$defs": {
+    "evidencia": {
+      "type": "object",
+      "required": ["afirmacion", "dato_ref"],
+      "properties": {
+        "afirmacion": {"type": "string", "maxLength": 400},
+        "dato_ref": {"type": "string", "minLength": 1},
+        "valor": {"type": ["number", "string", "null"]}
+      }
+    },
+    "driver": {
+      "type": "object",
+      "required": ["valor", "justificacion"],
+      "properties": {
+        "valor": {"oneOf": [{"type": "number"}, {"type": "array", "items": {"type": "number"}, "minItems": 1}]},
+        "justificacion": {"type": "string", "minLength": 5, "maxLength": 600},
+        "percentil_tasa_base": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "z": {"type": ["number", "null"]},
+        "evidencia_excepcional": {"type": "string", "maxLength": 600},
+        "dato_ref": {"type": "string"}
+      }
+    },
+    "escenario": {
+      "type": "object",
+      "required": ["nombre", "p", "drivers", "valor_metrica_e4", "descripcion"],
+      "properties": {
+        "nombre": {"enum": ["bajista", "base", "alcista"]},
+        "p": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+        "descripcion": {"type": "string", "maxLength": 600},
+        "drivers": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/driver"}},
+        "valor_metrica_e4": {"type": "number"},
+        "perdida_permanente": {
+          "type": "object",
+          "required": ["descripcion", "magnitud"],
+          "properties": {
+            "descripcion": {"type": "string", "maxLength": 400},
+            "magnitud": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      }
+    }
+  }
+}

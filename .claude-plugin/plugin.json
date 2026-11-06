@@ -1,0 +1,19 @@
+{
+  "name": "analisis-acciones",
+  "version": "0.1.0",
+  "description": "Analiza una acción a partir de su ticker: datos de fuentes primarias, valoración en código, fase ciega con dos encuadres, red team y juez. Devuelve un veredicto con probabilidades frente a VWCE y lo registra en un diario de predicciones.",
+  "author": {
+    "name": "Iñigo"
+  },
+  "repository": "https://github.com/inizub/analisis-acciones",
+  "license": "UNLICENSED",
+  "keywords": ["acciones", "valoracion", "dcf", "inversion"],
+  "userConfig": {
+    "journal_dir": {
+      "type": "directory",
+      "title": "Carpeta del diario",
+      "description": "Repositorio git privado donde se guardan las ejecuciones (runs/) y el diario de predicciones (diario/).",
+      "required": true
+    }
+  }
+}

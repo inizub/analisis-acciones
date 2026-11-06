@@ -1,0 +1,15 @@
+{
+  "ticker": "XYZ",
+  "fecha_analisis": "2026-11-06",
+  "ajustes": [
+    {
+      "analista": "A",
+      "driver": "crecimiento_ingresos",
+      "escenario": "alcista",
+      "valor_anterior": 0.14,
+      "valor_nuevo": 0.11,
+      "objecion_ref": "O1",
+      "motivo": "Validada: el 14 % está en el percentil 80 sin evidencia excepcional."
+    }
+  ]
+}

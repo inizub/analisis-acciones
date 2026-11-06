@@ -1,0 +1,161 @@
+sic_desde,sic_hasta,industria_damodaran,ruta,ciclica,motivo
+100,999,Farming/Agriculture,general,0,agricultura
+1000,1039,Metals & Mining,general,1,minería metálica
+1040,1049,Precious Metals,general,1,metales preciosos
+1050,1199,Metals & Mining,general,1,minería
+1200,1299,Coal & Related Energy,general,1,carbón
+1300,1379,Oil/Gas (Production and Exploration),general,1,petróleo y gas upstream
+1380,1389,Oilfield Svcs/Equip.,general,1,servicios petrolíferos
+1400,1499,Metals & Mining,general,1,minería no metálica
+1500,1519,Engineering/Construction,general,0,construcción
+1520,1531,Homebuilding,general,0,promoción de viviendas
+1532,1799,Engineering/Construction,general,0,construcción
+2000,2079,Food Processing,general,0,alimentación
+2080,2085,Beverage (Alcoholic),general,0,bebidas alcohólicas
+2086,2087,Beverage (Soft),general,0,refrescos
+2088,2099,Food Processing,general,0,alimentación
+2100,2199,Tobacco,general,0,tabaco
+2200,2399,Apparel,general,0,textil y confección
+2400,2499,Paper/Forest Products,general,1,madera
+2500,2599,Furn/Home Furnishings,general,0,muebles
+2600,2649,Paper/Forest Products,general,1,papel
+2650,2679,Packaging & Container,general,0,envases de papel
+2680,2699,Paper/Forest Products,general,1,papel
+2700,2799,Publishing & Newspapers,general,0,edición
+2800,2819,Chemical (Basic),general,1,química básica
+2820,2829,Chemical (Diversified),general,1,química diversificada
+2830,2833,Drugs (Pharmaceutical),general,0,farmacéutica
+2834,2834,Drugs (Pharmaceutical),biotech_candidata,0,farmacéutica (biotech si ingresos de producto < 50 M$)
+2835,2835,Healthcare Products,general,0,diagnóstico
+2836,2836,Drugs (Biotechnology),biotech_candidata,0,biotecnología (biotech si ingresos de producto < 50 M$)
+2837,2839,Drugs (Pharmaceutical),general,0,farmacéutica
+2840,2844,Household Products,general,0,productos del hogar
+2845,2899,Chemical (Specialty),general,1,química especializada
+2900,2999,Oil/Gas (Integrated),general,1,refino
+3000,3019,Rubber& Tires,general,1,neumáticos
+3020,3099,Chemical (Specialty),general,1,plásticos y caucho
+3100,3139,Apparel,general,0,cuero
+3140,3149,Shoe,general,0,calzado
+3150,3199,Apparel,general,0,cuero
+3200,3299,Building Materials,general,1,materiales de construcción
+3300,3329,Steel,general,1,acero
+3330,3399,Metals & Mining,general,1,metales no férreos
+3400,3409,Machinery,general,0,productos metálicos
+3410,3412,Packaging & Container,general,0,envases metálicos
+3413,3499,Machinery,general,0,productos metálicos
+3500,3558,Machinery,general,0,maquinaria
+3559,3559,Semiconductor Equip,general,1,equipos para semiconductores
+3560,3569,Machinery,general,0,maquinaria
+3570,3579,Computers/Peripherals,general,0,ordenadores
+3580,3599,Machinery,general,0,maquinaria
+3600,3629,Electrical Equipment,general,0,equipo eléctrico
+3630,3659,Electronics (Consumer & Office),general,0,electrónica de consumo
+3660,3669,Telecom. Equipment,general,0,equipos de telecomunicaciones
+3670,3673,Electronics (General),general,0,componentes electrónicos
+3674,3674,Semiconductor,general,1,semiconductores
+3675,3679,Electronics (General),general,0,componentes electrónicos
+3680,3699,Electrical Equipment,general,0,equipo eléctrico
+3700,3710,Auto & Truck,general,1,automóvil
+3711,3711,Auto & Truck,general,1,fabricantes de vehículos
+3712,3713,Auto & Truck,general,1,carrocerías
+3714,3714,Auto Parts,general,1,componentes de automóvil
+3715,3716,Auto & Truck,general,1,remolques y autocaravanas
+3717,3719,Auto Parts,general,1,componentes de automóvil
+3720,3729,Aerospace/Defense,general,0,aeronáutica
+3730,3732,Shipbuilding & Marine,general,0,naval
+3740,3743,Machinery,general,0,material ferroviario
+3750,3751,Recreation,general,0,motocicletas
+3760,3769,Aerospace/Defense,general,0,misiles y espacio
+3770,3799,Auto Parts,general,0,equipo de transporte
+3800,3811,Electronics (General),general,0,instrumentos
+3812,3812,Aerospace/Defense,general,0,navegación y defensa
+3813,3839,Electronics (General),general,0,instrumentos
+3840,3851,Healthcare Products,general,0,equipos médicos
+3852,3869,Office Equipment & Services,general,0,fotografía y óptica
+3870,3879,Electronics (Consumer & Office),general,0,relojes
+3880,3999,Recreation,general,0,manufacturas diversas
+4000,4099,Transportation (Railroads),general,0,ferrocarril
+4100,4199,Transportation,general,0,transporte de viajeros
+4200,4299,Trucking,general,0,transporte por carretera
+4300,4399,Transportation,general,0,servicio postal
+4400,4499,Shipbuilding & Marine,general,0,transporte marítimo
+4500,4599,Air Transport,general,0,transporte aéreo
+4600,4699,Oil/Gas Distribution,general,0,oleoductos
+4700,4799,Transportation,general,0,servicios de transporte
+4800,4811,Telecom. Services,general,0,telecomunicaciones
+4812,4812,Telecom (Wireless),general,0,telefonía móvil
+4813,4829,Telecom. Services,general,0,telecomunicaciones
+4830,4839,Broadcasting,general,0,radio y televisión
+4840,4849,Cable TV,general,0,televisión por cable
+4850,4899,Telecom. Services,general,0,telecomunicaciones
+4900,4910,Utility (General),general,0,servicios públicos
+4911,4911,Power,general,0,electricidad
+4912,4919,Utility (General),general,0,servicios públicos
+4920,4929,Oil/Gas Distribution,general,0,distribución de gas
+4930,4939,Utility (General),general,0,servicios combinados
+4940,4949,Utility (Water),general,0,agua
+4950,4959,Environmental & Waste Services,general,0,residuos
+4960,4990,Utility (General),general,0,servicios públicos
+4991,4991,Power,general,0,cogeneración
+4992,4999,Utility (General),general,0,servicios públicos
+5000,5139,Retail (Distributors),general,0,mayoristas
+5140,5149,Food Wholesalers,general,0,mayoristas de alimentación
+5150,5199,Retail (Distributors),general,0,mayoristas
+5200,5299,Retail (Building Supply),general,0,bricolaje
+5300,5399,Retail (General),general,0,grandes almacenes
+5400,5499,Retail (Grocery and Food),general,0,supermercados
+5500,5599,Retail (Automotive),general,0,concesionarios
+5600,5699,Retail (Special Lines),general,0,moda
+5700,5799,Retail (Special Lines),general,0,hogar y electrónica
+5800,5899,Restaurant/Dining,general,0,restauración
+5900,5960,Retail (Special Lines),general,0,comercio especializado
+5961,5961,Retail (General),general,0,venta a distancia
+5962,5999,Retail (Special Lines),general,0,comercio especializado
+6000,6199,Banks (Regional),banco_credito,0,banca y crédito
+6100,6199,Financial Svcs. (Non-bank & Insurance),banco_credito,0,crédito no bancario y fintech
+6200,6281,Brokerage & Investment Banking,general,0,intermediación
+6282,6282,Investments & Asset Management,general,0,gestión de activos
+6283,6299,Brokerage & Investment Banking,general,0,intermediación
+6300,6310,Insurance (General),fuera_de_alcance,0,aseguradora
+6311,6311,Insurance (Life),fuera_de_alcance,0,aseguradora de vida
+6312,6330,Insurance (General),fuera_de_alcance,0,aseguradora
+6331,6331,Insurance (Prop/Cas.),fuera_de_alcance,0,aseguradora de daños
+6332,6411,Insurance (General),fuera_de_alcance,0,aseguradora
+6412,6499,Insurance (General),general,0,servicios de seguros
+6500,6509,Real Estate (General/Diversified),general,0,inmobiliaria
+6510,6519,Real Estate (Operations & Services),general,0,arrendamiento inmobiliario
+6520,6549,Real Estate (General/Diversified),general,0,inmobiliaria
+6550,6553,Real Estate (Development),general,0,promoción inmobiliaria
+6554,6599,Real Estate (Operations & Services),general,0,servicios inmobiliarios
+6700,6719,Investments & Asset Management,general,0,holding financiera
+6720,6726,Investments & Asset Management,fuera_de_alcance,0,fondo de inversión
+6727,6769,Investments & Asset Management,general,0,inversión
+6770,6770,Investments & Asset Management,fuera_de_alcance,0,SPAC (blank check)
+6771,6797,Investments & Asset Management,general,0,inversión
+6798,6798,R.E.I.T.,fuera_de_alcance,0,REIT/SOCIMI
+6799,6799,Investments & Asset Management,general,0,inversión
+7000,7099,Hotel/Gaming,general,0,hoteles
+7200,7299,Business & Consumer Services,general,0,servicios personales
+7300,7309,Business & Consumer Services,general,0,servicios empresariales
+7310,7319,Advertising,general,0,publicidad
+7320,7369,Business & Consumer Services,general,0,servicios empresariales
+7370,7370,Software (Internet),general,0,servicios informáticos e internet
+7371,7371,Computer Services,general,0,programación a medida
+7372,7372,Software (System & Application),general,0,software
+7373,7379,Computer Services,general,0,servicios informáticos
+7380,7399,Business & Consumer Services,general,0,servicios empresariales
+7500,7599,Business & Consumer Services,general,0,servicios del automóvil
+7800,7899,Entertainment,general,0,cine y entretenimiento
+7900,7989,Recreation,general,0,ocio
+7990,7999,Hotel/Gaming,general,0,juego y ocio
+8000,8059,Healthcare Support Services,general,0,servicios sanitarios
+8060,8069,Hospitals/Healthcare Facilities,general,0,hospitales
+8070,8099,Healthcare Support Services,general,0,servicios sanitarios
+8100,8199,Business & Consumer Services,general,0,servicios jurídicos
+8200,8299,Education,general,0,educación
+8300,8699,Business & Consumer Services,general,0,servicios
+8700,8730,Engineering/Construction,general,0,ingeniería
+8731,8731,Drugs (Biotechnology),biotech_candidata,0,investigación biológica (biotech si ingresos de producto < 50 M$)
+8732,8739,Business & Consumer Services,general,0,investigación y consultoría
+8740,8999,Business & Consumer Services,general,0,consultoría y gestión
+9995,9995,Diversified,fuera_de_alcance,0,sin actividad operativa

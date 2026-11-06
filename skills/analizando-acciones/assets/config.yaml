@@ -1,0 +1,26 @@
+# Parámetros versionados del plugin. Cambiar un valor exige subir `version`.
+version: 1
+modelos: {datos: sonnet, analista: sonnet, forense: sonnet, red_team_fallback: sonnet, juez: opus}
+red_team_externo: {proveedor: gemini, modelo: "<configurar>", activo: false}
+eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: VWCE.DE, moneda: EUR}
+agregacion: {tasa_base_exceso: 0.45, k: 0.4, clip_E3_E4: [0.05, 0.95]}
+veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_bear: 0.50, no_atractiva_p_E1: 0.40, z_no_atractiva: 3}
+escenarios: {T_conv_anios: 3, mc_sims: 100000, t_nu: 4, semilla: 42}
+tasas_base_k: {crecimiento_ventas: 0.3, margen_operativo: 0.6, roic_roe: 0.6, margen_bruto: 0.8}
+forense: {fco_bn_min: 0.8, devengos_max: 0.10, cxc_gap_pp: 10, inv_gap_pp: 10, sbc_max: 0.10, dilucion_max: 0.03, goodwill_max: 0.40, cobertura_min: 3}
+macro: {tipos_umbral_pb: 25, tipos_ventana_sem: 26, hy_percentiles: [30, 70]}
+datos: {discrepancia_max: 0.02, precio_max_dias: 3}
+
+# Parámetros operativos de las fuentes de datos.
+cache_ttl_horas: {companyfacts: 24, submissions: 24, tickers: 24, precios: 12, damodaran: 720, macro: 168}
+edgar: {max_peticiones_seg: 8, anios: 10}
+yfinance: {reintentos: 5, espera_base_seg: 2, anios: 5}
+damodaran:
+  base_url: "https://pages.stern.nyu.edu/~adamodar/pc/datasets/"
+  archivo_erp_historica: histimpl.xls
+  archivo_primas_pais: ctryprem.xlsx
+  # Conjuntos sectoriales: clave -> prefijo del archivo. Región: "" (EE. UU.), Europe, emerg, Global.
+  conjuntos: {betas: beta, margenes: margin, roic: EVA, pbv: pbv, ev_ebitda: vebitda, roe: roe, wacc: wacc}
+  regiones: {us: "", europa: Europe, emergentes: emerg, global: Global}
+  # En EE. UU. algunos archivos no siguen el patrón prefijo+región.
+  us_excepciones: {beta: betas, pbv: pbvdata}

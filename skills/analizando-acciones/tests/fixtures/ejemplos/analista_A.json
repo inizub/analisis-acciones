@@ -1,0 +1,56 @@
+{
+  "ticker": "XYZ",
+  "fecha_analisis": "2026-11-06",
+  "encuadre": "A",
+  "ruta": "general",
+  "tipologia": "solida",
+  "narrativa": "Empresa de software empresarial con ingresos recurrentes. Crece por encima del sector con márgenes estables. La tesis depende de mantener la retención neta por encima del 110 %.",
+  "moat": {
+    "fuente": "costes_cambio",
+    "amplitud": "estrecho",
+    "evidencia": [{"afirmacion": "ROIC medio 5 años por encima del WACC sectorial", "dato_ref": "fundamentales.beneficio_operativo", "valor": 0.18}]
+  },
+  "gestion": {
+    "valoracion": "adecuada",
+    "evidencia": [{"afirmacion": "Recompras moderadas sin deuda adicional", "dato_ref": "fundamentales.recompras"}]
+  },
+  "escenarios": [
+    {
+      "nombre": "bajista", "p": 0.25, "descripcion": "La retención cae y el crecimiento converge a la media.",
+      "drivers": {
+        "crecimiento_ingresos": {"valor": 0.03, "justificacion": "Media de la clase de referencia", "percentil_tasa_base": 40, "z": -0.35},
+        "margen_operativo": {"valor": 0.15, "justificacion": "Margen sectorial de Damodaran", "percentil_tasa_base": 45, "z": -0.1}
+      },
+      "valor_metrica_e4": 0.02,
+      "perdida_permanente": {"descripcion": "Compresión de múltiplo y menor crecimiento", "magnitud": 0.35}
+    },
+    {
+      "nombre": "base", "p": 0.5, "descripcion": "Crecimiento en línea con el guidance.",
+      "drivers": {
+        "crecimiento_ingresos": {"valor": 0.08, "justificacion": "Guidance vigente", "percentil_tasa_base": 62, "z": 0.1},
+        "margen_operativo": {"valor": 0.22, "justificacion": "Margen histórico de 5 años", "percentil_tasa_base": 70, "z": 0.5}
+      },
+      "valor_metrica_e4": 0.08
+    },
+    {
+      "nombre": "alcista", "p": 0.25, "descripcion": "Nuevos productos aceleran el crecimiento.",
+      "drivers": {
+        "crecimiento_ingresos": {"valor": 0.14, "justificacion": "Aceleración por nuevos módulos", "percentil_tasa_base": 80, "z": 0.65},
+        "margen_operativo": {"valor": 0.27, "justificacion": "Apalancamiento operativo", "percentil_tasa_base": 85, "z": 0.9}
+      },
+      "valor_metrica_e4": 0.13
+    }
+  ],
+  "lectura_dcf_inverso": {
+    "expectativa_implicita": "El precio descuenta un crecimiento de ingresos del 9 % anual durante 10 años.",
+    "opinion": "razonable",
+    "argumento": "Está ligeramente por encima del escenario base, pero dentro del percentil 65 de la tasa base."
+  },
+  "catalizador": {"descripcion": "Resultados anuales con datos de retención", "horizonte_meses": 4},
+  "pre_mortem": [
+    "La retención neta cae por debajo del 100 % por la competencia de precios.",
+    "Una recesión retrasa los proyectos de los clientes empresariales.",
+    "La dilución por remuneración en acciones anula el crecimiento del beneficio por acción."
+  ],
+  "metrica_e4": {"metrica": "crecimiento_ingresos", "valor_base": 0.08, "unidad": "ratio", "periodo": "FY2026"}
+}

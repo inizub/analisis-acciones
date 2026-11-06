@@ -1,0 +1,25 @@
+# Secretos
+.env
+*.env
+.config/
+
+# Entornos y cachés de Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Cachés de datos y artefactos de ejecución
+cache/
+.cache/
+*.sqlite
+runs/
+diario/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

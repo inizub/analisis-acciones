@@ -1,0 +1,55 @@
+{
+  "id": "XYZ-2026-11-06-a",
+  "created_at": "2026-11-06T18:00:00Z",
+  "hash_prev": null,
+  "skill": {
+    "version": "0.1.0",
+    "hash_prompts": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "hash_config": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "modo": "completo"
+  },
+  "modelos": {"analista": "claude-sonnet-5-5", "red_team": "claude-sonnet-5-5", "juez": "claude-opus-5-5"},
+  "ticker": "XYZ",
+  "ruta_sectorial": "general",
+  "independencia": true,
+  "input_snapshot": {
+    "precio": {"valor": 100.0, "moneda": "USD", "fuente": "yfinance", "ts": "2026-11-05"},
+    "fx_eur": {"valor": 1.12, "fuente": "yfinance", "ts": "2026-11-05"},
+    "fuentes": [{"url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000000001.json", "retrieved_at": "2026-11-06T17:00:00Z", "published_at": null}],
+    "campos_desconocidos": []
+  },
+  "veredicto": "neutral",
+  "motivo_no_analizable": null,
+  "valoracion": {
+    "metodo": "dcf_fcff",
+    "escenarios": [
+      {"nombre": "bajista", "analista": "A", "p": 0.25, "valor": 70.0},
+      {"nombre": "base", "analista": "A", "p": 0.5, "valor": 105.0},
+      {"nombre": "alcista", "analista": "A", "p": 0.25, "valor": 140.0}
+    ],
+    "reverse_dcf": {"driver": "crecimiento_ingresos", "valor": 0.09, "percentil": 65, "sin_raiz": false},
+    "exceso_anual_esperado_pp": 1.2,
+    "rel_12m_p5_p50_p95": [-0.35, 0.01, 0.38],
+    "perdida_escenario_bajista": 0.3
+  },
+  "agregacion": {"p_A": {"E1": 0.55}, "p_B": {"E1": 0.45}, "dispersion": {"E1": 0.1}, "tasa_base": 0.45, "tasa_base_tipo": "heuristica", "k": 0.4},
+  "preguntas": [
+    {"qid": "E0", "texto": "RT(XYZ)-RT(VWCE.DE) EUR > 0, 2026-11-06→2027-05-06", "p": 0.47, "resolve_date": "2027-05-06", "fuente_resolucion": "yfinance cierres ajustados", "anular_si": ["opa", "delisting", "escision", "sin_datos"]},
+    {"qid": "E1", "texto": "RT(XYZ)-RT(VWCE.DE) EUR > 0, 2026-11-06→2027-11-06", "p": 0.47, "resolve_date": "2027-11-06", "fuente_resolucion": "yfinance cierres ajustados", "anular_si": ["opa", "delisting", "escision", "sin_datos"]},
+    {"qid": "E2", "texto": "RT(XYZ)-RT(VWCE.DE) EUR > 0, 2026-11-06→2029-11-06", "p": 0.48, "resolve_date": "2029-11-06", "fuente_resolucion": "yfinance cierres ajustados", "anular_si": ["opa", "delisting", "escision", "sin_datos"]},
+    {"qid": "E3", "texto": "Caída ≥ 30 % desde 100.0 USD antes de 2027-11-06", "p": 0.12, "resolve_date": "2027-11-06", "fuente_resolucion": "yfinance cierres", "anular_si": ["opa", "delisting", "escision", "sin_datos"]},
+    {"qid": "E4", "texto": "Crecimiento de ingresos FY2026 (10-K) ≥ 8 %", "p": 0.5, "resolve_date": null, "fuente_resolucion": "EDGAR 10-K", "anular_si": ["opa", "delisting", "escision", "sin_datos"]}
+  ],
+  "razones": ["Crecimiento en línea con la tasa base", "Margen estable", "Valoración razonable"],
+  "mejor_contraargumento": "El precio ya descuenta el escenario base.",
+  "criterios_invalidacion": [
+    {"dato": "Retención neta", "umbral": "< 100 %", "efecto": "p(E1) → < 0,40"},
+    {"dato": "Margen operativo T1", "umbral": "< 18 %", "efecto": "p(E1) → < 0,42"}
+  ],
+  "red_team": {"fuente": "claude", "objeciones": [{"objecion": "Crecimiento alcista implausible", "dato_ref": "fundamentales.ingresos", "validada": true, "ajuste": {"driver": "crecimiento_ingresos", "valor_nuevo": 0.11}}]},
+  "banderas_forenses": [{"bandera": "SBC/ingresos 9 %", "nivel": "informativa"}],
+  "checklist": {"pasa": true, "fallos": []},
+  "baselines": {"B0": 0.45, "B1": 0.46, "B2": 0.55, "B3": 0.45},
+  "updates": [],
+  "resolucion": {}
+}

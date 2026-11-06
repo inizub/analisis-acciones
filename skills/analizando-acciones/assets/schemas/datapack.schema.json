@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "datapack.schema.json",
+  "title": "datapack",
+  "description": "Datos de entrada de un análisis. Cada cifra lleva fuente y fecha, o se marca desconocida con su causa. Lo producen datapack_base.py (código) y el agente datos (huecos).",
+  "type": "object",
+  "required": ["version_esquema", "ticker", "fecha_analisis", "empresa", "fundamentales", "precios", "campos_desconocidos", "fuentes"],
+  "properties": {
+    "version_esquema": {"const": 1},
+    "ticker": {"type": "string", "pattern": "^[A-Z0-9][A-Z0-9.\\-]{0,14}$"},
+    "fecha_analisis": {"$ref": "#/$defs/fecha"},
+    "creado": {"type": "string"},
+    "tasas_base": {"type": "object"},
+    "empresa": {"oneOf": [{"$ref": "#/$defs/desconocido"}, {"$ref": "#/$defs/empresa"}]},
+    "fundamentales": {
+      "type": "object",
+      "additionalProperties": {"oneOf": [{"$ref": "#/$defs/desconocido"}, {"$ref": "#/$defs/serie"}]}
+    },
+    "trimestrales": {
+      "type": "object",
+      "description": "Últimos trimestres por campo (sobre todo emisores 20-F). Cada punto es una cifra con periodo_inicio.",
+      "additionalProperties": {"oneOf": [{"$ref": "#/$defs/desconocido"}, {"$ref": "#/$defs/serie"}]}
+    },
+    "precios": {"oneOf": [{"$ref": "#/$defs/desconocido"}, {"$ref": "#/$defs/precios"}]},
+    "damodaran": {"oneOf": [{"$ref": "#/$defs/desconocido"}, {"$ref": "#/$defs/damodaran"}]},
+    "macro": {"type": "object"},
+    "sensibilidades": {"type": "object"},
+    "segmentos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["nombre", "tipo", "ingresos"],
+        "properties": {
+          "nombre": {"type": "string", "maxLength": 120},
+          "tipo": {"enum": ["negocio", "geografia", "moneda"]},
+          "ingresos": {"$ref": "#/$defs/cifra"},
+          "peso": {"$ref": "#/$defs/cifra"},
+          "beneficio_operativo": {"$ref": "#/$defs/cifra"}
+        }
+      }
+    },
+    "guidance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["metrica", "valor", "periodo"],
+        "properties": {
+          "metrica": {"type": "string", "maxLength": 120},
+          "valor": {"$ref": "#/$defs/cifra"},
+          "valor_max": {"$ref": "#/$defs/cifra"},
+          "periodo": {"type": "string", "maxLength": 40}
+        }
+      }
+    },
+    "banca": {
+      "type": "object",
+      "properties": {
+        "morosidad": {"$ref": "#/$defs/serie_o_cifra"},
+        "coste_riesgo": {"$ref": "#/$defs/serie_o_cifra"},
+        "cet1": {"$ref": "#/$defs/serie_o_cifra"},
+        "cet1_requisito": {"$ref": "#/$defs/serie_o_cifra"},
+        "crecimiento_prestamos": {"$ref": "#/$defs/serie_o_cifra"},
+        "crecimiento_depositos": {"$ref": "#/$defs/serie_o_cifra"}
+      }
+    },
+    "hechos_recientes": {"type": "array", "items": {"$ref": "#/$defs/nota"}},
+    "cambios": {
+      "type": "object",
+      "properties": {
+        "auditor": {"type": "array", "items": {"$ref": "#/$defs/nota"}},
+        "politicas_contables": {"type": "array", "items": {"$ref": "#/$defs/nota"}},
+        "factores_riesgo": {"type": "array", "items": {"$ref": "#/$defs/nota"}},
+        "opinion_auditoria": {"type": "array", "items": {"$ref": "#/$defs/nota"}}
+      }
+    },
+    "extractos_filings": {"type": "array", "items": {"$ref": "#/$defs/nota"}},
+    "verificacion_cruzada": {"type": "object"},
+    "campos_desconocidos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["campo", "causa"],
+        "properties": {"campo": {"type": "string"}, "causa": {"$ref": "#/$defs/causa"}}
+      }
+    },
+    "fuentes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": {"type": "string", "minLength": 1},
+          "retrieved_at": {"type": ["string", "null"]},
+          "published_at": {"type": ["string", "null"]}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fecha": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}"},
+    "causa": {"enum": ["source_down", "rate_limited", "not_covered", "stale"]},
+    "desconocido": {
+      "type": "object",
+      "required": ["desconocido", "causa"],
+      "properties": {
+        "desconocido": {"const": true},
+        "causa": {"$ref": "#/$defs/causa"},
+        "detalle": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "cifra_conocida": {
+      "type": "object",
+      "required": ["valor", "unidad", "moneda", "fuente_url", "fecha_dato", "fecha_obtencion"],
+      "properties": {
+        "valor": {"type": "number"},
+        "unidad": {"type": "string", "minLength": 1},
+        "moneda": {"type": ["string", "null"]},
+        "fuente_url": {"type": "string", "minLength": 1},
+        "fecha_dato": {"$ref": "#/$defs/fecha"},
+        "fecha_obtencion": {"type": "string", "minLength": 10},
+        "ejercicio": {"type": "integer"},
+        "periodo_inicio": {"type": ["string", "null"]},
+        "concepto": {"type": "string"},
+        "forma": {"type": "string"},
+        "presentado": {"type": "string"},
+        "accn": {"type": "string"},
+        "nota": {"type": "string", "maxLength": 300}
+      },
+      "not": {"required": ["desconocido"]}
+    },
+    "cifra": {"oneOf": [{"$ref": "#/$defs/cifra_conocida"}, {"$ref": "#/$defs/desconocido"}]},
+    "serie": {
+      "type": "object",
+      "required": ["concepto", "serie"],
+      "properties": {
+        "concepto": {"type": "string"},
+        "serie": {"type": "array", "items": {"$ref": "#/$defs/cifra_conocida"}}
+      }
+    },
+    "serie_o_cifra": {"oneOf": [{"$ref": "#/$defs/serie"}, {"$ref": "#/$defs/cifra_conocida"}, {"$ref": "#/$defs/desconocido"}]},
+    "nota": {
+      "type": "object",
+      "required": ["fecha", "resumen", "fuente_url"],
+      "properties": {
+        "fecha": {"$ref": "#/$defs/fecha"},
+        "tipo": {"type": "string", "maxLength": 60},
+        "tema": {"type": "string", "maxLength": 60},
+        "resumen": {"type": "string", "maxLength": 600},
+        "fuente_url": {"type": "string", "minLength": 1},
+        "fecha_obtencion": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "empresa": {
+      "type": "object",
+      "required": ["ticker", "nombre", "sic", "taxonomia", "anios_estados"],
+      "properties": {
+        "ticker": {"type": "string"},
+        "cik": {"type": "string"},
+        "nombre": {"type": ["string", "null"]},
+        "sic": {"type": ["integer", "null"]},
+        "sic_descripcion": {"type": ["string", "null"]},
+        "taxonomia": {"enum": ["us-gaap", "ifrs-full", null]},
+        "forma_anual": {"type": ["string", "null"]},
+        "moneda_informe": {"type": ["string", "null"]},
+        "anios_estados": {"type": "integer", "minimum": 0},
+        "pais_negocio": {"type": ["string", "null"]}
+      }
+    },
+    "precios": {
+      "type": "object",
+      "required": ["moneda", "precio", "precio_eur", "fx_eur", "antiguedad_dias", "metricas_eur"],
+      "properties": {
+        "ticker_precio": {"type": "string"},
+        "moneda": {"type": "string"},
+        "precio": {"$ref": "#/$defs/cifra"},
+        "precio_eur": {"$ref": "#/$defs/cifra"},
+        "fx_eur": {"$ref": "#/$defs/cifra"},
+        "capitalizacion": {"$ref": "#/$defs/cifra"},
+        "capitalizacion_eur": {"$ref": "#/$defs/cifra"},
+        "dividendos_12m": {"$ref": "#/$defs/cifra"},
+        "rentabilidad_dividendo": {"$ref": "#/$defs/cifra"},
+        "antiguedad_dias": {"type": "integer", "minimum": 0},
+        "metricas_eur": {"type": "object", "additionalProperties": {"$ref": "#/$defs/cifra"}}
+      }
+    },
+    "damodaran": {
+      "type": "object",
+      "required": ["erp_madura", "prima_pais", "sector"],
+      "properties": {
+        "erp_madura": {"$ref": "#/$defs/cifra"},
+        "erp_historica": {"type": "object"},
+        "prima_pais": {"type": "object"},
+        "sector": {
+          "type": "object",
+          "required": ["industria", "region", "valores"],
+          "properties": {
+            "industria": {"type": "string"},
+            "region": {"enum": ["us", "europa", "emergentes", "global"]},
+            "clasificacion_sic": {"type": "object"},
+            "valores": {"type": "object", "additionalProperties": {"$ref": "#/$defs/cifra"}}
+          }
+        }
+      }
+    }
+  }
+}
