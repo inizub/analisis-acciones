@@ -37,12 +37,21 @@ def dp_completo(ticker="XYZ", fecha="2026-11-06", antiguedad=1, sic=7372, **camp
         "ticker_precio": ticker, "moneda": "USD", "precio": cifra(100.0, "por_accion", "USD"),
         "precio_eur": cifra(89.3, "por_accion", "EUR"), "fx_eur": cifra(1.12, "USD_por_EUR"),
         "capitalizacion": cifra(1e11, "unidades", "USD"), "antiguedad_dias": antiguedad,
-        "metricas_eur": {"momentum_12_1_rel": cifra(0.05)}}
+        "metricas_eur": {"momentum_12_1_rel": cifra(0.05), "vol_rel_3a": cifra(0.25), "vol_3a": cifra(0.30)}}
     dp["damodaran"] = {
-        "erp_madura": cifra(0.0423, "ratio", "USD"), "prima_pais": {"pais": "United States"},
+        "erp_madura": cifra(0.0423, "ratio", "USD"),
+        "prima_pais": {"pais": "United States", "crp": cifra(0.0035), "tasa_impuestos": cifra(0.25)},
         "sector": {"industria": "Software (System & Application)", "region": "us",
-                   "valores": {"betas.beta_desapalancada": cifra(1.1, "veces"), "ev_ebitda.ev_ebit": cifra(20.0, "veces"),
-                               "pbv.pbv": cifra(2.0, "veces"), "pbv.roe": cifra(0.15)}}}
+                   "valores": {"betas.beta_desapalancada": cifra(1.1, "veces"),
+                               "betas.beta_desapalancada_caja": cifra(1.15, "veces"), "betas.beta": cifra(1.2, "veces"),
+                               "ev_ebitda.ev_ebit": cifra(20.0, "veces"), "pbv.pbv": cifra(2.0, "veces"),
+                               "pbv.roe": cifra(0.15), "wacc.coste_deuda": cifra(0.055),
+                               "capex.ventas_capital": cifra(1.8, "veces")}},
+        "tabla_ratings": {"fuente_url": "https://x", "fecha_obtencion": "2026-11-06T00:00:00Z", "filas": [
+            {"cobertura_min": -100000.0, "rating": "D2/D", "diferencial": 0.19},
+            {"cobertura_min": 1.5, "rating": "B2/B", "diferencial": 0.0321},
+            {"cobertura_min": 3.0, "rating": "A3/A-", "diferencial": 0.0089},
+            {"cobertura_min": 8.5, "rating": "Aaa/AAA", "diferencial": 0.004}]}}
     dp["verificacion_cruzada"] = {c: {"estado": "ok", "diferencia_rel": 0.0} for c in ("ingresos", "beneficio_neto", "acciones_diluidas")}
     dp["fuentes"] = [{"url": "https://x", "retrieved_at": "2026-11-06T00:00:00Z"}]
     dp["campos_desconocidos"] = []

@@ -84,8 +84,9 @@ def cargar_env() -> None:
 
 
 def variable_requerida(nombre: str) -> str:
+    """Variable de ~/.config/analisis-acciones/.env o del entorno; acepta también EVAL_<NOMBRE> (evals aisladas)."""
     cargar_env()
-    valor = os.environ.get(nombre, "").strip()
+    valor = (os.environ.get(nombre) or os.environ.get(f"EVAL_{nombre}") or "").strip()
     if not valor:
         raise ErrorDatos(
             f"Falta la variable {nombre}. Defínela en {RUTA_ENV}.", causa="source_down"

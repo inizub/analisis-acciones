@@ -23,3 +23,7 @@ diario/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Diario y ejecuciones del usuario (journal_dir dentro del repo)
+journal/
+.claude/settings.local.json

@@ -8,6 +8,9 @@
   "repository": "https://github.com/inizub/analisis-acciones",
   "license": "UNLICENSED",
   "keywords": ["acciones", "valoracion", "dcf", "inversion"],
+  "experimental": {
+    "evals": "skills/analizando-acciones/evals"
+  },
   "userConfig": {
     "journal_dir": {
       "type": "directory",

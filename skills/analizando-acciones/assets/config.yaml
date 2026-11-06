@@ -6,6 +6,21 @@ eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: V
 agregacion: {tasa_base_exceso: 0.45, k: 0.4, clip_E3_E4: [0.05, 0.95]}
 veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_bear: 0.50, no_atractiva_p_E1: 0.40, z_no_atractiva: 3}
 escenarios: {T_conv_anios: 3, mc_sims: 100000, t_nu: 4, semilla: 42}
+# Construcción de la base de valoración (motor/inicial.py). Parámetros de modelo, no datos de la empresa.
+motor:
+  g_terminal_max: 0.03            # g terminal = min(Rf, este valor)
+  tasa_impuestos_defecto: 0.25    # solo si Damodaran no da el tipo del país
+  anios_convergencia_margen: 5
+  ventas_capital_rango: [0.2, 10]
+  roc_rango: [0.03, 0.5]
+  rnpv:                           # heurísticos: el analista los corrige con sus drivers
+    margen: 0.35
+    anios_hasta_lanzamiento: {I: 7, II: 5, III: 3, NDA: 1}
+    anios_rampa: 5
+    anios_meseta: 5
+    anios_declive: 3
+    fraccion_quema_generales: 0.3
+    anios_gastos_generales: 5
 tasas_base_k: {crecimiento_ventas: 0.3, margen_operativo: 0.6, roic_roe: 0.6, margen_bruto: 0.8}
 forense: {fco_bn_min: 0.8, devengos_max: 0.10, cxc_gap_pp: 10, inv_gap_pp: 10, sbc_max: 0.10, dilucion_max: 0.03, goodwill_max: 0.40, cobertura_min: 3,
           gap_anios: 2, dilucion_anios: 3, fco_bn_anios: 3, banca_tendencia_anios: 2, banca_cet1_margen_pp: 1}
@@ -83,7 +98,8 @@ damodaran:
   archivo_erp_historica: histimpl.xls
   archivo_primas_pais: ctryprem.xlsx
   # Conjuntos sectoriales: clave -> prefijo del archivo. Región: "" (EE. UU.), Europe, emerg, Global.
-  conjuntos: {betas: beta, margenes: margin, roic: EVA, pbv: pbv, ev_ebitda: vebitda, roe: roe, wacc: wacc}
+  conjuntos: {betas: beta, margenes: margin, roic: EVA, pbv: pbv, ev_ebitda: vebitda, roe: roe, wacc: wacc, capex: capex}
+  url_ratings: "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ratings.htm"
   regiones: {us: "", europa: Europe, emergentes: emerg, global: Global}
   # En EE. UU. algunos archivos no siguen el patrón prefijo+región.
   us_excepciones: {beta: betas, pbv: pbvdata}

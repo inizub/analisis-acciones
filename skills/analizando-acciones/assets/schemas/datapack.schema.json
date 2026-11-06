@@ -35,10 +35,33 @@
           "tipo": {"enum": ["negocio", "geografia", "moneda"]},
           "ingresos": {"$ref": "#/$defs/cifra"},
           "peso": {"$ref": "#/$defs/cifra"},
-          "beneficio_operativo": {"$ref": "#/$defs/cifra"}
+          "beneficio_operativo": {"$ref": "#/$defs/cifra"},
+          "multiplo_ev_ebit": {"$ref": "#/$defs/cifra"},
+          "industria_damodaran": {"type": "string", "maxLength": 80}
         }
       }
     },
+    "pipeline": {
+      "type": "array",
+      "description": "Activos clínicos (ruta biotech). ventas_pico solo si hay una estimación publicada con fuente.",
+      "items": {
+        "type": "object",
+        "required": ["nombre", "fase", "fuente_url"],
+        "properties": {
+          "nombre": {"type": "string", "maxLength": 120},
+          "fase": {"enum": ["I", "II", "III", "NDA"]},
+          "area": {"enum": ["allergy", "autoimmune", "cardiovascular", "endocrine", "gastroenterology", "hematology",
+                            "infectious_disease", "metabolic", "neurology", "oncology", "ophthalmology", "others",
+                            "psychiatry", "respiratory", "urology", "todas"]},
+          "indicacion": {"type": "string", "maxLength": 200},
+          "ventas_pico": {"$ref": "#/$defs/cifra"},
+          "proximo_hito": {"type": "string", "maxLength": 300},
+          "fuente_url": {"type": "string", "minLength": 1},
+          "fecha_dato": {"$ref": "#/$defs/fecha"}
+        }
+      }
+    },
+    "holding_coste_anual": {"$ref": "#/$defs/cifra"},
     "guidance": {
       "type": "array",
       "items": {
@@ -174,7 +197,8 @@
         "anios_estados": {"type": "integer", "minimum": 0},
         "pais_negocio": {"type": ["string", "null"]},
         "holding_declarada": {"type": "boolean"},
-        "en_concurso": {"type": "boolean"}
+        "en_concurso": {"type": "boolean"},
+        "ratio_adr": {"$ref": "#/$defs/cifra"}
       }
     },
     "precios": {

@@ -20,7 +20,7 @@ motor_inicial.json → clave "base":
   biotech_precomercial: rnpv {activos, tabla, tasa, caja_neta, gastos_generales_anuales, anios_gastos, acciones}
   holding: sotp {segmentos, deuda, caja, coste_holding_anual, tasa_descuento, acciones}
 Drivers por ruta (analista.escenarios[i].drivers.<nombre>.valor):
-  general: crecimiento_ingresos, margen_operativo, [ventas_capital]
+  general: crecimiento_ingresos, margen_operativo, [ventas_capital, roic_terminal (solo con moat documentado)]
   crecimiento_perdidas: los de general + [probabilidad_fracaso, valor_fracaso_por_accion]
   ciclica: margen_operativo (normalizado), [crecimiento_estable]
   banco_credito: roe, [payout, roe_estable]
@@ -74,6 +74,13 @@ def valorar(ruta: str, base: dict, drivers: dict) -> dict:
             g = crecimiento_con_desvanecimiento(g, base["g_terminal"])
         args["ventas_capital"] = _v(drivers, "ventas_capital", base["ventas_capital"])
         m = _v(drivers, "margen_operativo", base.get("margen_operativo"))
+        roic_t = drivers.get("roic_terminal")
+        if roic_t is not None:
+            if base.get("moat_documentado"):
+                args.update(moat_documentado=True, roic_terminal=_v(drivers, "roic_terminal"))
+                usados["roic_terminal"] = args["roic_terminal"]
+            else:
+                usados["roic_terminal"] = "ignorado: el analista no documenta un moat con evidencia"
         r = dcf_fcff(crecimiento=g, margen_operativo=m, **args)
         valor = r["valor_por_accion"]
         usados.update(crecimiento_ingresos=g, margen_operativo=m, ventas_capital=args["ventas_capital"])
@@ -121,6 +128,12 @@ def valorar(ruta: str, base: dict, drivers: dict) -> dict:
         valor = r["valor_por_accion"]
         usados.update(factor_multiplos=f)
     return {"valor": valor, "metodo": METODO_POR_RUTA[ruta], "drivers_usados": usados, "puente": r.get("puente")}
+
+
+def moat_documentado(analista: dict) -> bool:
+    """Moat con fuente identificada y al menos una evidencia con dato_ref: habilita un ROIC terminal mayor que el WACC."""
+    m = analista.get("moat") or {}
+    return m.get("fuente", "ninguna") != "ninguna" and m.get("amplitud", "ninguno") != "ninguno" and         any(e.get("dato_ref") for e in m.get("evidencia", []))
 
 
 def aplicar_ajustes(analista: dict, ajustes: dict | None) -> tuple[dict, list[dict]]:
@@ -194,6 +207,7 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     p0 = base["precio0"]
     exigir(p0 > 0, "precio0 debe ser positivo")
     escenarios = []
+    base = {**base, "moat_documentado": moat_documentado(a)}
     for e in a["escenarios"]:
         v = valorar(ruta, base, e["drivers"])
         escenarios.append({"nombre": e["nombre"], "p": e["p"], "valor": v["valor"], "valor_sobre_p0": v["valor"] / p0,

@@ -193,7 +193,7 @@ def _banderas(art: dict) -> list[dict]:
 
 def _red_team(art: dict, modo: str) -> dict:
     obj = art.get("objeciones")
-    if modo != "completo" or not obj:
+    if modo == "rapido" or not obj:   # en rápido no hay red team; en completo y degradado, sí
         return {"fuente": "ninguno", "objeciones": []}
     veredictos = {o["id"]: o["veredicto"] for o in (art.get("sintesis") or {}).get("objeciones_verificadas", [])}
     ajustes = {a["objecion_ref"]: a for a in (art.get("ajustes") or {}).get("ajustes", [])}
@@ -210,8 +210,13 @@ def _escenarios_valoracion(art: dict) -> list[dict]:
     res = []
     for n, esc in art["escenarios"].items():
         drivers = {e["nombre"]: e["drivers"] for e in (art.get("analistas", {}).get(n) or {}).get("escenarios", [])}
+        codigo = esc.get("percentiles_codigo") or {}
         for e in esc["escenarios"]:
-            pcts = {d: v.get("percentil_tasa_base") for d, v in drivers.get(e["nombre"], {}).items()}
+            # Percentiles calculados por código (tasas_base.py) si existen; si no, los que citó el analista.
+            if e["nombre"] in codigo:
+                pcts = {d: v["percentil"] for d, v in codigo[e["nombre"]].items()}
+            else:
+                pcts = {d: v.get("percentil_tasa_base") for d, v in drivers.get(e["nombre"], {}).items()}
             res.append({"nombre": e["nombre"], "analista": n, "p": e["p"], "valor": e["valor"],
                         "drivers": e["drivers_usados"], "percentiles_tasa_base": pcts})
     return res
@@ -236,6 +241,8 @@ def _agregacion(art: dict, cfg: dict) -> dict:
     res = {f"p_{n}": ag["p_por_analista"][n] for n in ag["analistas"]}
     res.update(p_agg=ag["p_agg"], p_final=ag["p_final"], dispersion=ag["dispersion"], tasa_base=ag["tasa_base"],
                tasa_base_tipo=ag["tasa_base_tipo"], k=ag["k"])
+    if "p_final_sin_ajustes" in ag:  # para medir cuánto mueven las objeciones validadas (regla de 18 meses, A12)
+        res["p_final_sin_ajustes"] = ag["p_final_sin_ajustes"]
     return res
 
 
@@ -261,7 +268,9 @@ def ensamblar_verdict(art: dict, modo: str, modelos: dict | None, id_: str, hash
         "skill": {"version": comun.version_plugin(), "hash_prompts": comun.hash_prompts(),
                   "hash_config": comun.hash_config(), "modo": modo},
         "modelos": {**default_modelos, **(modelos or {})},
-        "ticker": dp["ticker"], "ruta_sectorial": art["router"]["ruta"], "independencia": modo != "degradado",
+        "ticker": dp["ticker"], "ruta_sectorial": art["router"]["ruta"],
+        # Sin independencia en modo degradado o si la auditoría de la traza encontró lecturas cruzadas.
+        "independencia": modo != "degradado" and not (art.get("auditoria") or {}).get("lecturas_cruzadas"),
         "input_snapshot": {
             "precio": _snapshot_valor(precios and precios.get("precio")),
             "fx_eur": _snapshot_valor(precios and precios.get("fx_eur")),
@@ -293,6 +302,14 @@ def _pc(x: float | None, dec: int = 0) -> str:
     return "n/d" if x is None else f"{100 * x:.{dec}f} %".replace(".", ",")
 
 
+def _fmt_driver(driver: str, valor: float) -> str:
+    if driver in ("crecimiento_ingresos", "margen_operativo", "roe"):
+        return _pc(valor, 1)
+    if driver == "anios_ventaja":
+        return f"{valor:.0f} años"
+    return f"{valor:.2f}×".replace(".", ",")
+
+
 def resumen_md(v: dict) -> str:
     L = [f"# {v['ticker']}: {v['veredicto'].replace('_', ' ')}", "",
          f"`{v['id']}` · modo {v['skill']['modo']} · ruta {v['ruta_sectorial']}"
@@ -314,7 +331,8 @@ def resumen_md(v: dict) -> str:
               f"- Retorno relativo a 12 meses (p5 / p50 / p95): {_pc(p5)} / {_pc(p50)} / {_pc(p95)}",
               f"- Pérdida en el escenario bajista: {_pc(val['perdida_escenario_bajista'])}",
               "- DCF inverso: " + ("sin solución en rangos razonables" if rd["sin_raiz"] else
-                                   f"{rd['driver']} implícito = {rd['valor']:.3g}" + (f" (percentil {rd['percentil']:.0f})" if rd.get("percentil") is not None else ""))]
+                                   f"{rd['driver'].replace('_', ' ')} implícito en el precio = {_fmt_driver(rd['driver'], rd['valor'])}"
+                                   + (f" (percentil {rd['percentil']:.0f} de su clase)" if rd.get("percentil") is not None else ""))]
         if v["razones"]:
             L += ["", "## Razones", ""] + [f"{i}. {r}" for i, r in enumerate(v["razones"], 1)]
         if v["mejor_contraargumento"]:
@@ -345,6 +363,7 @@ def cargar_artefactos(d: Path, modo: str) -> dict:
     art["ajustes"] = g._leer(d, "ajustes.json")
     art["baselines"] = g._leer(d, "baselines.json")
     art["forense_metricas"] = g._leer(d, "forense_metricas.json")
+    art["auditoria"] = g._leer(d, "auditoria_traza.json")
     return art
 
 

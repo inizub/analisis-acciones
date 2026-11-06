@@ -1,6 +1,6 @@
 # analisis-acciones
 
-Plugin de Claude Code para analizar acciones individuales. Recibe un ticker y devuelve un análisis con veredicto (`atractiva`, `neutral`, `no_atractiva` o `no_analizable`), probabilidades, escenarios, mejor argumento contrario y criterios de invalidación. Cada predicción queda registrada en un diario para comprobar más adelante si acertó.
+Plugin de Claude Code para analizar acciones individuales. Recibe un ticker y devuelve un análisis con veredicto (`atractiva`, `neutral`, `no_atractiva` o `no_analizable`), probabilidades de batir a VWCE en EUR, escenarios, mejor argumento contrario y criterios de invalidación. Cada predicción queda registrada en un diario para comprobar más adelante si acertó.
 
 El plugin no conoce la cartera, el tamaño de posición ni la fiscalidad de quien lo usa. Esas decisiones se toman fuera, con el resultado del análisis.
 
@@ -8,66 +8,110 @@ El plugin no conoce la cartera, el tamaño de posición ni la fiscalidad de quie
 
 ## Cómo funciona
 
-- **Código en Python** para lo que tiene fórmula: descarga de datos, valoración (DCF, DCF inverso, métodos para bancos, cíclicas y biotech), tasas base, simulación de escenarios, agregación y checklist.
-- **Cinco agentes** para lo que requiere juicio: datos, analista fundamental (se ejecuta con dos encuadres opuestos), forense, red team y juez.
-- **Hooks** que impiden que los analistas accedan a internet o lean el trabajo de los demás.
-- **Diario de predicciones** que se resuelve y se puntúa con el tiempo.
+- **Código en Python** para lo que tiene fórmula: descarga de datos (SEC EDGAR, Yahoo Finance, FRED, BCE, Damodaran), valoración (DCF, DCF inverso, métodos para bancos, cíclicas, biotech y holdings), tasas base, simulación de escenarios, agregación, checklist y diario.
+- **Cinco agentes** para lo que requiere juicio: datos, analista fundamental (con dos encuadres opuestos en modo completo), forense, red team y juez. Ninguno calcula probabilidades: las calcula el código con sus drivers.
+- **Hooks** que impiden que los analistas accedan a internet o lean el trabajo de los demás, validan cada salida y dejan una traza.
+- **Diario de predicciones** append-only con cadena de hashes, que se resuelve y se puntúa con el tiempo.
 
 El diseño completo está en [`SPEC.md`](SPEC.md).
 
 ## Requisitos
 
 - Claude Code (plan Pro o superior).
-- Python ≥ 3.11 y [`uv`](https://docs.astral.sh/uv/).
-- Claves y datos de acceso:
-  - `SEC_USER_AGENT`: tu nombre y email, por ejemplo `Nombre Apellido correo@ejemplo.com` (EDGAR lo exige; no es una clave).
-  - `FRED_API_KEY`: gratuita, en https://fredaccount.stlouisfed.org/apikeys
-
-Guárdalos en `~/.config/analisis-acciones/.env`:
+- [`uv`](https://docs.astral.sh/uv/): el plugin crea con él su propio entorno de Python 3.12 la primera vez que se usa (tarda alrededor de un minuto).
+- En Windows, Git for Windows (Claude Code usa su bash para ejecutar los scripts).
+- Claves y datos de acceso en `~/.config/analisis-acciones/.env`:
 
 ```
 SEC_USER_AGENT=Nombre Apellido correo@ejemplo.com
 FRED_API_KEY=tu_clave
 ```
 
+`SEC_USER_AGENT` es tu nombre y email (EDGAR lo exige; no es una clave). `FRED_API_KEY` es gratuita en https://fredaccount.stlouisfed.org/apikeys
+
 ## Instalación
 
 Desde Claude Code:
 
 ```
-/plugin marketplace add TU-USUARIO/analisis-acciones
+/plugin marketplace add inizub/analisis-acciones
 /plugin install analisis-acciones@analisis-acciones
 ```
 
-Durante el desarrollo:
+Al instalarlo te pide `journal_dir`: la carpeta donde se guardan las ejecuciones (`runs/`) y el diario (`diario/`). Si el repositorio es privado, Claude Code usa las credenciales de git de tu equipo.
+
+Desde la terminal, en un solo paso y fijando el diario:
 
 ```
-claude --plugin-dir ./analisis-acciones
+claude plugin install analisis-acciones --marketplace inizub/analisis-acciones --config journal_dir=C:/ruta/al/diario
 ```
 
-Al instalarlo, indica la carpeta de tu repositorio del diario (`journal_dir`).
+Para actualizar: `claude plugin update analisis-acciones@analisis-acciones` (la actualización automática viene desactivada en marketplaces propios).
+
+Durante el desarrollo, desde la carpeta del repositorio:
+
+```
+claude --plugin-dir .
+```
 
 ## Uso
 
 | Comando | Qué hace |
 |---|---|
-| `/analizar TICKER` | Análisis completo |
-| `/analizar TICKER rapido` | Versión más barata, para filtrar |
-| `/resolver-diario` | Resuelve las predicciones vencidas |
+| `/analisis-acciones:analizar TICKER` | Análisis completo (dos analistas, forense, red team y juez) |
+| `/analisis-acciones:analizar TICKER rapido` | Un solo analista, sin red team ni juez |
+| `/analisis-acciones:resolver-diario [informe]` | Resuelve las predicciones vencidas y, con `informe`, escribe el informe trimestral |
+| `/analisis-acciones:macro-semanal` | Actualiza el régimen macro |
 
-Cada análisis se guarda en `<journal_dir>/runs/<TICKER>/<fecha>/` con un `resumen.md` legible y un `verdict.json`.
+También basta con pedirlo con naturalidad («analiza NU»). Del texto solo se usan el ticker y el modo: cualquier opinión que añadas se ignora y no llega a los agentes.
+
+Cada análisis se guarda en `<journal_dir>/runs/<TICKER>/<fecha>/` con un `resumen.md` legible y un `verdict.json`, y añade una línea a `<journal_dir>/diario/predicciones.jsonl`.
+
+`resolver.py` no usa ningún modelo, así que puede ir en una tarea programada semanal:
+
+```
+bash skills/analizando-acciones/scripts/py.sh ~/.cache/analisis-acciones resolver.py resolver --diario <journal_dir>/diario/predicciones.jsonl
+```
 
 ## Estructura
 
 ```
 .claude-plugin/        manifiesto del plugin y del marketplace
-skills/                skill orquestador, scripts, referencias, esquemas y tests
+skills/analizando-acciones/
+  SKILL.md             orquestador
+  references/          instrucciones de los agentes por tarea y por ruta sectorial
+  scripts/             datos, motor de valoración, router, tasas base, forense, macro, agregación,
+                       checklist, diario, resolución, puntuación, hooks y control de la ejecución
+  assets/              config.yaml, esquemas JSON, tasas base, probabilidades clínicas, mapeo SIC
+  tests/               pytest
+  evals/               evals del skill (claude plugin eval)
 agents/                los cinco agentes
-commands/              /analizar, /resolver-diario, /macro-semanal
-hooks/                 bloqueos de herramientas y validación
+commands/              analizar, resolver-diario, macro-semanal
+hooks/                 aislamiento, validación y traza
 SPEC.md                especificación completa
+```
+
+## Pruebas
+
+```
+uv venv .venv --python 3.12
+uv pip install -r requirements.txt --python .venv
+.venv/Scripts/python -m pytest        # en macOS o Linux: .venv/bin/python -m pytest
+```
+
+Las evals ejecutan análisis reales y necesitan Bash, que `claude plugin eval` solo permite dentro del sandbox del sistema: en Windows hay que lanzarlas desde WSL2. Como las evals no leen tu `.env`, exporta las claves con el prefijo `EVAL_`:
+
+```
+EVAL_SEC_USER_AGENT="Nombre correo@ejemplo.com" EVAL_FRED_API_KEY=... \
+claude plugin eval . --allow-tools Bash Write Edit WebFetch WebSearch --runs 1
 ```
 
 ## Estado
 
-En construcción. Orden de desarrollo en la sección A15 de `SPEC.md`.
+Versión 0.1.0. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
+
+Limitaciones conocidas:
+
+- Solo valora empresas que informan en USD o EUR; el resto da `no_analizable` con el motivo.
+- Las tasas base calculadas con EDGAR no distinguen sector.
+- El etiquetado de crédito usa el spread BAA10Y porque FRED solo ofrece tres años del spread high yield.

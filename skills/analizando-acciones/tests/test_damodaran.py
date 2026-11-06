@@ -191,3 +191,46 @@ def test_construir_seccion_pais_desconocido():
     c = ClienteFalsoDam({"ctryprem.xlsx": archivo_ctryprem(), "histimpl.xls": archivo_histimpl()})
     s = damodaran.construir_seccion(7372, "Narnia", c)
     assert comun.es_desconocido(s["prima_pais"]) and s["sector"]["region"] == "global"
+
+
+def test_tasas_impositivas_por_pais():
+    filas = [["Country", "GDP (in millions)", "Moody's rating", "Sovereign CDS", "Adj. Default Spread",
+              "Equity Risk Premium", "Country Risk Premium", "Corporate Tax Rate", "Region"],
+             ["Brazil", 2e6, "Ba1", 0.02, 0.0213, 0.0747, 0.0324, 0.34, "Central and South America"],
+             ["Spain", 1.5e6, "Baa1", None, 0.0136, 0.0630, 0.0207, 0.25, "Western Europe"]]
+    contenido = xlsx({"ERPs by country": [["Country", "Region", "Moody's rating", "Rating-based Default Spread",
+                                           "Total Equity Risk Premium", "Country Risk Premium"],
+                                          ["Brazil", "Central and South America", "Ba1", 0.0213, 0.0747, 0.0324]],
+                      "Regional breakdown": filas})
+    assert damodaran.tasas_impositivas(contenido) == {"Brazil": 0.34, "Spain": 0.25}
+    assert damodaran.primas_pais(contenido)["Brazil"]["tasa_impuestos"] == 0.34
+    assert damodaran.tasas_impositivas(archivo_ctryprem()) == {}            # sin la hoja: no inventa nada
+
+
+HTML_RATINGS = """<table><tr><td>If interest coverage ratio is</td></tr>
+<tr><td>&gt;</td><td>&le; to</td><td>Rating is</td><td>Spread is</td></tr>
+""" + "".join(f"<tr><td>{a}</td><td>{b}</td><td>{r}</td><td>{s}%</td><td></td><td>x</td></tr>" for a, b, r, s in [
+    ("-100000", "0.199999", "D2/D", "19.00"), ("0.2", "0.649999", "C2/C", "16.00"), ("0.65", "0.799999", "Ca2/CC", "12.61"),
+    ("0.8", "1.249999", "Caa/CCC", "8.85"), ("1.25", "1.499999", "B3/B-", "5.09"), ("1.5", "1.749999", "B2/B", "3.21"),
+    ("1.75", "1.999999", "B1/B+", "2.75"), ("2", "2.2499999", "Ba2/BB", "1.84"), ("2.25", "2.49999", "Ba1/BB+", "1.38"),
+    ("2.5", "2.999999", "Baa2/BBB", "1.11"), ("3", "4.249999", "A3/A-", "0.89"), ("8.50", "100000", "Aaa/AAA", "0.40")]) + "</table>"
+
+
+def test_tabla_ratings():
+    t = damodaran.tabla_ratings(HTML_RATINGS)
+    assert len(t) == 12 and t[0] == {"cobertura_min": -100000.0, "rating": "D2/D", "diferencial": 0.19}
+    assert t[-1] == {"cobertura_min": 8.5, "rating": "Aaa/AAA", "diferencial": 0.004}
+    from motor.dcf import rating_sintetico
+    assert rating_sintetico(2.6, t)["rating"] == "Baa2/BBB"
+    with pytest.raises(comun.ErrorDatos):
+        damodaran.tabla_ratings("<table><tr><td>nada</td></tr></table>")
+
+
+def test_construir_seccion_incluye_la_tabla_de_ratings():
+    c = ClienteFalsoDam({"ctryprem.xlsx": archivo_ctryprem(), "histimpl.xls": archivo_histimpl(),
+                         comun.cargar_config()["damodaran"]["url_ratings"]: HTML_RATINGS.encode("latin-1")})
+    s = damodaran.construir_seccion(7372, "United States", c)
+    assert len(s["tabla_ratings"]["filas"]) == 12
+    s = damodaran.construir_seccion(7372, "United States", ClienteFalsoDam({"ctryprem.xlsx": archivo_ctryprem(),
+                                                                            "histimpl.xls": archivo_histimpl()}))
+    assert comun.es_desconocido(s["tabla_ratings"])

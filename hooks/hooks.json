@@ -1,0 +1,47 @@
+{
+  "description": "analisis-acciones: aislamiento de los agentes (red, rutas y escritura), validación de sus salidas y traza de la ejecución.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--quiet", "--no-project", "--python", "3.12", "python",
+                     "${CLAUDE_PLUGIN_ROOT}/skills/analizando-acciones/scripts/hooks/guardia.py", "pre"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--quiet", "--no-project", "--python", "3.12", "python",
+                     "${CLAUDE_PLUGIN_ROOT}/skills/analizando-acciones/scripts/hooks/guardia.py", "post"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--quiet", "--no-project", "--python", "3.12", "--with-requirements",
+                     "${CLAUDE_PLUGIN_ROOT}/requirements.txt", "python",
+                     "${CLAUDE_PLUGIN_ROOT}/skills/analizando-acciones/scripts/hooks/validar_salida.py"],
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

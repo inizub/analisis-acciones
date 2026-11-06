@@ -81,6 +81,7 @@ def condiciones_veredicto(p_e1: float, exceso_pp: float, perdida_bajista: float,
                           reverse_dcf: dict | None, cfg: dict) -> dict:
     """Evalúa por separado cada condición de A1. Devuelve {'no_atractiva': {...}, 'atractiva': {...}}."""
     v = cfg["veredicto"]
+    pc = lambda x: f"{x:.2f}".replace(".", ",")  # noqa: E731
     resultados = (reverse_dcf or {}).get("resultados") or []
     z_altos = [f"{r['driver']} (z={r['z']:.1f})" for r in resultados
                if r.get("z") is not None and r["z"] > v["z_no_atractiva"]]
@@ -88,12 +89,12 @@ def condiciones_veredicto(p_e1: float, exceso_pp: float, perdida_bajista: float,
     graves = [b["bandera"] for b in banderas if b.get("nivel") in comun.NIVELES_GRAVES]
     return {
         "no_atractiva": {
-            f"p_final(E1) ≤ {v['no_atractiva_p_E1']}": p_e1 <= v["no_atractiva_p_E1"] + EPS,
+            f"p_final(E1) ≤ {pc(v['no_atractiva_p_E1'])}": p_e1 <= v["no_atractiva_p_E1"] + EPS,
             "DCF inverso sin raíz": sin_raiz is True,
             f"el precio implica un driver con z > {v['z_no_atractiva']}": bool(z_altos),
         },
         "atractiva": {
-            f"p_final(E1) ≥ {v['atractiva_p_E1']}": p_e1 >= v["atractiva_p_E1"] - EPS,
+            f"p_final(E1) ≥ {pc(v['atractiva_p_E1'])}": p_e1 >= v["atractiva_p_E1"] - EPS,
             f"exceso anual esperado ≥ {v['atractiva_exceso_pp']} pp": exceso_pp >= v["atractiva_exceso_pp"] - EPS,
             f"pérdida en el escenario bajista ≤ {v['atractiva_max_perdida_bear']:.0%}":
                 perdida_bajista <= v["atractiva_max_perdida_bear"] + EPS,

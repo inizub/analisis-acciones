@@ -146,6 +146,8 @@ def punto_4(analistas: dict[str, dict | None], esperados: list[str]) -> dict:
 
 
 def punto_5(motor: dict | None) -> dict:
+    if motor and motor.get("error"):
+        return _fallo(f"el motor no pudo construir la base: {motor['error']}")
     r = (motor or {}).get("reverse_dcf")
     if not r or "principal" not in r:
         return _fallo("motor_inicial.json no contiene el DCF inverso")

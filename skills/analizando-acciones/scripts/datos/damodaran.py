@@ -46,6 +46,7 @@ COLUMNAS: dict[str, dict[str, str]] = {
     "roe": {"roe": "roe (unadjusted)"},
     "wacc": {"coste_deuda": "cost of debt", "deuda_sobre_capital": "d/(d+e)", "wacc": "cost of capital",
              "coste_capital_propio": "cost of equity"},
+    "capex": {"ventas_capital": "sales/ invested capital (ltm)"},
 }
 
 # Región de los conjuntos sectoriales según la región de ctryprem.xlsx.
@@ -185,7 +186,47 @@ def primas_pais(contenido_ctryprem: bytes) -> dict[str, dict]:
             "diferencial_impago": _num(df.iat[i, j_ds]), "erp_total": _num(df.iat[i, j_erp]),
             "crp": _num(df.iat[i, j_crp]),
         }
+    for pais, tasa in tasas_impositivas(contenido_ctryprem).items():
+        if pais in res:
+            res[pais]["tasa_impuestos"] = tasa
     return res
+
+
+def tasas_impositivas(contenido_ctryprem: bytes) -> dict[str, float]:
+    """Tipo del impuesto de sociedades por país (hoja 'Regional breakdown'). Vacío si la hoja no existe."""
+    try:
+        df = _leer_excel(contenido_ctryprem, "Regional breakdown")
+    except (ValueError, KeyError):
+        return {}
+    filas = [i for i in range(min(len(df), 10)) if _norm(df.iat[i, 0]) == "country"]
+    if not filas:
+        return {}
+    cols = [_norm(c) for c in df.iloc[filas[0]]]
+    j = next((k for k, c in enumerate(cols) if c.startswith("corporate tax rate")), None)
+    if j is None:
+        return {}
+    return {str(df.iat[i, 0]).strip(): _num(df.iat[i, j]) for i in range(filas[0] + 1, len(df))
+            if not pd.isna(df.iat[i, 0]) and _num(df.iat[i, j]) is not None}
+
+
+def tabla_ratings(html: str) -> list[dict]:
+    """Tabla de rating sintético para empresas grandes no financieras de ratings.htm de Damodaran:
+    [{cobertura_min, rating, diferencial}] ordenada por cobertura."""
+    import html as html_mod
+
+    filas = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, flags=re.S | re.I):
+        celdas = [html_mod.unescape(re.sub(r"<[^>]+>", " ", c)).strip()
+                  for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, flags=re.S | re.I)]
+        if len(celdas) < 4:
+            continue
+        minimo, rating, dif = celdas[0].replace(",", ""), celdas[2], celdas[3]
+        if re.fullmatch(r"-?\d+(\.\d+)?", minimo) and dif.endswith("%") and rating:
+            filas.append({"cobertura_min": float(minimo), "rating": rating,
+                          "diferencial": float(dif.rstrip("%").strip()) / 100})
+    if len(filas) < 10:
+        raise comun.ErrorDatos("No se reconoce la tabla de rating sintético de Damodaran", "source_down")
+    return sorted(filas, key=lambda f: f["cobertura_min"])
 
 
 @lru_cache(maxsize=1)
@@ -230,7 +271,8 @@ def unidad_columna(clave: str) -> str:
     campo = clave.split(".")[-1]
     if campo == "n_empresas":
         return "empresas"
-    if campo in ("pbv", "ev_ebitda", "ev_ebit", "ev_capital_invertido", "de_ratio") or campo.startswith("beta"):
+    if campo in ("pbv", "ev_ebitda", "ev_ebit", "ev_capital_invertido", "de_ratio", "ventas_capital") \
+            or campo.startswith("beta"):
         return "veces"
     return "ratio"
 
@@ -263,9 +305,10 @@ class ClienteDamodaran:
         return self.base + archivo
 
     def descargar(self, archivo: str) -> tuple[bytes, str]:
+        """Descarga un archivo de datasets/ (o una URL completa si empieza por http) con caché de 30 días."""
         import requests
 
-        url = self.url(archivo)
+        url = archivo if archivo.startswith("http") else self.url(archivo)
         b = self.cache.obtener_bytes("damodaran", url)
         if b is not None:
             return b, "cache"
@@ -305,6 +348,10 @@ class ClienteDamodaran:
     def primas(self) -> dict[str, dict]:
         b, _ = self.descargar(self.cfg["damodaran"]["archivo_primas_pais"])
         return primas_pais(b)
+
+    def ratings(self) -> list[dict]:
+        b, _ = self.descargar(self.cfg["damodaran"]["url_ratings"])
+        return tabla_ratings(b.decode("latin-1"))
 
     def sector(self, industria: str, region: str) -> dict:
         tablas, urls = {}, {}
@@ -350,12 +397,19 @@ def construir_seccion(sic: int | None, pais: str | None, cliente: ClienteDamodar
             desconocidos.append({"campo": f"damodaran.sector.{k}", "causa": "not_covered"})
         else:
             valores[k] = comun.cifra(v, unidad_columna(k), None, url, fecha_dam, obtenido)
+    try:
+        ratings: Any = {"fuente_url": cliente.cfg["damodaran"]["url_ratings"], "fecha_obtencion": obtenido,
+                        "filas": cliente.ratings()}
+    except comun.ErrorDatos as e:
+        ratings = comun.desconocido(e.causa, str(e))
+        desconocidos.append({"campo": "damodaran.tabla_ratings", "causa": e.causa})
     return {
         "erp_madura": comun.cifra(erp["erp"], "ratio", "USD", url_crp, fecha_dam, obtenido),
         "erp_historica": erp["historica"],
         "prima_pais": prima,
         "sector": {"industria": clas["industria_damodaran"], "region": region, "clasificacion_sic": clas,
                    "valores": valores},
+        "tabla_ratings": ratings,
         "desconocidos": desconocidos,
     }
 
