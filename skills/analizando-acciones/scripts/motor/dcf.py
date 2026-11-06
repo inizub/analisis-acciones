@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from motor.comun_motor import ErrorMotor, exigir, factor_descuento, finito, por_accion, serie_anual, trayectoria  # noqa: E402
+from motor.comun_motor import ErrorMotor, exigir, finito, por_accion, serie_anual, trayectoria  # noqa: E402
 
 
 def beta_reapalancada(beta_desapalancada: float, deuda_capital: float, tasa_impuestos: float) -> float:

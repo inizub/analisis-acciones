@@ -101,16 +101,27 @@ def resolver_roe(precio: float, base_banco: dict, rango: tuple[float, float] = R
     return {"driver": "roe", "valor": r, "sin_raiz": r is None, "rango": list(rango)}
 
 
+def resolver_roe_5_anios(precio: float, base_banco: dict, rango: tuple[float, float] = RANGO_ROE) -> dict:
+    """ROE de los 5 años explícitos con ROE = Ke a partir del año 6: la convención terminal de los escenarios."""
+    def f(roe: float) -> float:
+        return valor_excess_return(base_banco["patrimonio0"], roe, base_banco["ke"], base_banco["payout"],
+                                   base_banco["acciones"], base_banco.get("anios", 5),
+                                   ke_estable=base_banco.get("ke_estable"), g_estable=base_banco.get("g_estable", 0.0)
+                                   )["valor_por_accion"] - precio
+    r = _raiz(f, *rango)
+    return {"driver": "roe_5_anios_luego_ke", "valor": r, "sin_raiz": r is None, "rango": list(rango)}
+
+
 def resolver(precio: float, base: dict, ruta: str, tasas_base: dict | None = None) -> dict:
     """Ejecuta los resolutores de la ruta. `tasas_base`: {driver: {media, desv}} para los percentiles."""
     exigir(precio > 0, "precio debe ser positivo")
     tasas_base = tasas_base or {}
     if ruta == "banco_credito":
-        res = [resolver_roe(precio, base["banco"])]
+        res = [resolver_roe(precio, base["banco"]), resolver_roe_5_anios(precio, base["banco"])]
     else:
         res = [resolver_crecimiento(precio, base), resolver_margen(precio, base), resolver_anios_ventaja(precio, base)]
     for r in res:
-        tb = tasas_base.get(r["driver"])
+        tb = tasas_base.get("roe" if r["driver"] == "roe_5_anios_luego_ke" else r["driver"])
         r["percentil"] = percentil_normal(r["valor"], tb["media"], tb["desv"]) if tb else None
         if tb:
             r["z"] = None if r["valor"] is None else (r["valor"] - tb["media"]) / tb["desv"]

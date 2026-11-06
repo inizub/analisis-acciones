@@ -145,3 +145,14 @@ def test_cli(tmp_path):
     assert s["parametros"]["semilla"] == 42 and s["parametros"]["mc_sims"] == 100_000
     (tmp_path / "m.json").write_text(json.dumps({"base": dict(BASE, ruta="holding")}), encoding="utf-8")
     assert escenarios.main(["--analista", str(tmp_path / "a.json"), "--motor", str(tmp_path / "m.json")]) == 1
+
+
+def test_roe_estable_solo_con_moat_documentado():
+    base = {"banco": {"patrimonio0": 1000.0, "ke": 0.10, "payout": 0.3, "acciones": 100.0, "anios": 5, "g_estable": 0.03}}
+    drivers = {"roe": {"valor": 0.15}, "roe_estable": {"valor": 0.14}}
+    sin_moat = escenarios.valorar("banco_credito", base, drivers)
+    assert sin_moat["drivers_usados"]["roe_estable"] == pytest.approx(0.10)
+    assert "ignorado" in sin_moat["drivers_usados"]["roe_estable_propuesto"]
+    con_moat = escenarios.valorar("banco_credito", dict(base, moat_documentado=True), drivers)
+    assert con_moat["drivers_usados"]["roe_estable"] == pytest.approx(0.14)
+    assert con_moat["valor"] > sin_moat["valor"]

@@ -1,11 +1,9 @@
 import io
 import json
-import os
 from pathlib import Path
 
 import pytest
 
-import comun
 import ejecucion
 from artefactos import dp_completo, ejemplo, forense, sintesis
 from hooks import guardia, validar_salida

@@ -1,5 +1,4 @@
 """Tests del motor de valoración, con tests dorados a partir de las fuentes de A14."""
-import copy
 import json
 
 import pytest
@@ -278,3 +277,13 @@ def test_sotp():
     assert r["valor_por_accion"] == pytest.approx((1250 + 50 - 300 - 100) / 10)
     with pytest.raises(ErrorMotor):
         sotp.valor_sotp([{"nombre": "X", "metodo": "raro"}], 0, 0, 0, 0.1, 1)
+
+
+def test_reverse_dcf_banco_roe_5_anios_luego_ke():
+    from motor.excess_return import valor_excess_return
+    b = dict(patrimonio0=1_000.0, ke=0.10, payout=0.4, acciones=100.0, anios=5, g_estable=0.03)
+    precio = valor_excess_return(1_000.0, 0.18, 0.10, 0.4, 100.0, 5, g_estable=0.03)["valor_por_accion"]
+    r = reverse_dcf.resolver(precio, {"banco": b}, "banco_credito", {"roe": {"media": 0.10, "desv": 0.05}})
+    sostenido, cinco = r["resultados"]
+    assert cinco["driver"] == "roe_5_anios_luego_ke" and cinco["valor"] == pytest.approx(0.18, abs=1e-8)
+    assert sostenido["valor"] < cinco["valor"] and cinco["percentil"] is not None

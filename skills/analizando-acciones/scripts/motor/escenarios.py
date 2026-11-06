@@ -103,7 +103,13 @@ def valorar(ruta: str, base: dict, drivers: dict) -> dict:
         b = base["banco"]
         roe = _v(drivers, "roe")
         payout = _v(drivers, "payout", b["payout"])
-        roe_st = _v(drivers, "roe_estable", b.get("ke_estable", b["ke"]))
+        ke_st = b.get("ke_estable") or b["ke"]
+        roe_st = ke_st
+        if "roe_estable" in drivers:
+            if base.get("moat_documentado"):
+                roe_st = _v(drivers, "roe_estable")
+            else:
+                usados["roe_estable_propuesto"] = "ignorado: el analista no documenta un moat con evidencia"
         r = valor_excess_return(b["patrimonio0"], roe, b["ke"], payout, b["acciones"], b.get("anios", 5),
                                 roe_estable=roe_st, ke_estable=b.get("ke_estable"), g_estable=b.get("g_estable", 0.0))
         valor = r["valor_por_accion"]

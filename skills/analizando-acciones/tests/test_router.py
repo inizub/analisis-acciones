@@ -2,7 +2,7 @@ import pytest
 
 import comun
 import router
-from dp_sintetico import cifra_banca, crecer, datapack, segmento, serie
+from dp_sintetico import crecer, datapack, segmento
 
 MM = 1_000_000_000  # ventas del orden de 10.000 M$ (clase 10000-50000)
 TABLA = ()  # sin tabla: la regla de crecimiento no se evalúa

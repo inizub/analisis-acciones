@@ -1,7 +1,6 @@
 import json
 from datetime import date, datetime, timezone
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -93,7 +92,7 @@ def test_valor_e4():
 # ---------------------------------------------------------------- E0-E2
 
 def test_exceso_positivo_y_negativo():
-    ref, fin = "2026-11-06", "2027-11-06"
+    fin = "2027-11-06"
     bench = serie("2026-01-01", "2027-11-20", lambda i: 100.0 * 1.0003 ** i)
     base = {"1": serie("2026-01-01", "2027-11-20", lambda i: 100.0 * 1.0006 ** i),
             "0": serie("2026-01-01", "2027-11-20", lambda i: 100.0 * 1.0001 ** i)}

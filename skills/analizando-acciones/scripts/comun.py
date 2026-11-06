@@ -206,8 +206,3 @@ def salir_con_error(mensaje: str, codigo: int = 1) -> None:
     print(json.dumps({"error": mensaje}, ensure_ascii=False), file=sys.stderr)
     sys.exit(codigo)
 
-
-def asegurar_path() -> None:
-    """Permite `import comun` y `from datos import ...` al ejecutar un script de una subcarpeta."""
-    if str(DIR_SCRIPTS) not in sys.path:
-        sys.path.insert(0, str(DIR_SCRIPTS))

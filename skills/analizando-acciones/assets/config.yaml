@@ -1,5 +1,5 @@
 # Parámetros versionados del plugin. Cambiar un valor exige subir `version`.
-version: 3
+version: 4
 modelos: {datos: sonnet, analista: sonnet, forense: sonnet, red_team_fallback: sonnet, juez: opus}
 red_team_externo: {proveedor: gemini, modelo: "<configurar>", activo: false}
 eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: VWCE.DE, moneda: EUR}
@@ -64,8 +64,9 @@ gate:
     ciclica: [fundamentales/ingresos, fundamentales/beneficio_operativo, fundamentales/acciones_diluidas,
               fundamentales/deuda_total, fundamentales/caja, "damodaran/sector/valores/betas.beta_desapalancada"]
     banco_credito: [fundamentales/ingresos, fundamentales/beneficio_neto, fundamentales/patrimonio,
-                    fundamentales/acciones_diluidas, fundamentales/prestamos, fundamentales/depositos,
-                    banca/cet1, banca/cet1_requisito]
+                    fundamentales/acciones_diluidas, fundamentales/prestamos, fundamentales/depositos]
+    # banco_credito exige además el capital: CET1 y su requisito o, si no se publica CET1, el ratio de capital total
+    # y su mínimo (gate.capital_bancario).
     biotech_precomercial: [fundamentales/ingresos, fundamentales/fco, fundamentales/caja, fundamentales/deuda_total,
                            fundamentales/acciones_diluidas]
     holding: [fundamentales/ingresos, fundamentales/acciones_diluidas, fundamentales/deuda_total, fundamentales/caja,

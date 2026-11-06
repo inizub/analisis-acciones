@@ -23,7 +23,7 @@ import argparse
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 import pandas as pd
 

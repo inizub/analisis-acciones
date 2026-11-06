@@ -3,7 +3,6 @@ import json
 import pytest
 
 import agregar
-import comun
 from artefactos import escenarios as esc, motor, run
 
 B, K = 0.45, 0.4

@@ -1,9 +1,9 @@
 import comun
 import validar
-from datos import datapack_base, edgar, precios
+from datos import datapack_base, precios
 from test_damodaran import ClienteFalsoDam, archivo_ctryprem, archivo_histimpl, archivo_sector
 from test_edgar import ClienteFalso
-from test_precios import YFFalso, TickerFalso, hist, yf_mundo
+from test_precios import YFFalso, TickerFalso, yf_mundo
 
 
 def clientes(fixture, cache_tmp, yf=None):

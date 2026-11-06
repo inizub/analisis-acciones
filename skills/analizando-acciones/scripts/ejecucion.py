@@ -30,7 +30,7 @@ import json
 import re
 import shutil
 import sys
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -124,8 +124,7 @@ def _router_y_criticos(dp: dict) -> tuple[dict, list[str]]:
     import router
 
     r = router.clasificar(dp)
-    faltan = [m for c in gate.campos_criticos(r["ruta"], comun.cargar_config()) if (m := gate.comprobar_campo(dp, c))]
-    return r, faltan
+    return r, gate.faltan_criticos(dp, r["ruta"], comun.cargar_config())
 
 
 def preparar_macro(d: Path, journal: Path) -> dict:

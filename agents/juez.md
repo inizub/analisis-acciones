@@ -27,7 +27,9 @@ Sigue `juez.md`:
 2. Cada objeción validada que cambia un input se convierte en una entrada de `RUN/ajustes.json`.
 3. Si hay ajustes, puedes ver su efecto con:
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/analizando-acciones/scripts/py.sh" "${CLAUDE_PLUGIN_DATA}" motor/escenarios.py --analista RUN/analista_A.json --motor RUN/motor_inicial.json --ajustes RUN/ajustes.json`
-   (y lo mismo con analista_B.json). Es el único comando que puedes ejecutar, junto con `agregar.py` y `gate.py`.
+   (y lo mismo con analista_B.json), sustituyendo RUN por la ruta completa. Ejecútalo tal cual, sin `cd`, `&&` ni
+   tuberías: es el único comando que puedes ejecutar, junto con `agregar.py` y `gate.py`, y cualquier otra forma se
+   bloquea.
 4. Escribe las tres razones principales, el mejor contraargumento y los criterios de invalidación.
 5. Documenta los desacuerdos entre A y B sin resolverlos artificialmente.
 

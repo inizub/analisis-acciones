@@ -82,6 +82,8 @@
         "coste_riesgo": {"$ref": "#/$defs/serie_o_cifra"},
         "cet1": {"$ref": "#/$defs/serie_o_cifra"},
         "cet1_requisito": {"$ref": "#/$defs/serie_o_cifra"},
+        "capital_total": {"$ref": "#/$defs/serie_o_cifra"},
+        "capital_total_requisito": {"$ref": "#/$defs/serie_o_cifra"},
         "crecimiento_prestamos": {"$ref": "#/$defs/serie_o_cifra"},
         "crecimiento_depositos": {"$ref": "#/$defs/serie_o_cifra"}
       }

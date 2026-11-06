@@ -205,14 +205,17 @@ def coste_riesgo(dp: dict, cfg: dict) -> dict:
 
 
 def cet1(dp: dict, cfg: dict) -> dict:
-    campos = ["banca.cet1", "banca.cet1_requisito"]
-    v, req = _valores((dp.get("banca") or {}).get("cet1")), _valores((dp.get("banca") or {}).get("cet1_requisito"))
-    if not v or not req:
-        return _sin_datos("faltan CET1 o su requisito", campos)
-    actual, requisito = sorted(v)[-1][1], sorted(req)[-1][1]
-    minimo = requisito + cfg["banca_cet1_margen_pp"] / 100
-    return _ok(actual, minimo, actual < minimo, f"CET1 {actual:.2%} frente a requisito {requisito:.2%} + "
-               f"{cfg['banca_cet1_margen_pp']} pp", campos)
+    """CET1 frente a su requisito + margen; si el emisor no publica CET1, el ratio de capital total frente a su mínimo."""
+    banca = dp.get("banca") or {}
+    for nombre, clave in (("CET1", "cet1"), ("Capital total", "capital_total")):
+        campos = [f"banca.{clave}", f"banca.{clave}_requisito"]
+        v, req = _valores(banca.get(clave)), _valores(banca.get(f"{clave}_requisito"))
+        if v and req:
+            actual, requisito = sorted(v)[-1][1], sorted(req)[-1][1]
+            minimo = requisito + cfg["banca_cet1_margen_pp"] / 100
+            return _ok(actual, minimo, actual < minimo, f"{nombre} {actual:.2%} frente a requisito {requisito:.2%} + "
+                       f"{cfg['banca_cet1_margen_pp']} pp", campos)
+    return _sin_datos("faltan CET1 (o el ratio de capital total) y su requisito", ["banca.cet1", "banca.cet1_requisito"])
 
 
 METRICAS = {

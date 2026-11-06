@@ -2,10 +2,8 @@ import json
 import math
 
 import numpy as np
-import pandas as pd
 import pytest
 
-import comun
 import tasas_base
 import tasas_base_build as build
 from motor import rnpv

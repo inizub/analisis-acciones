@@ -1,7 +1,6 @@
 """Ejecución sintética completa (todos los artefactos de RUN_DIR) para los tests de agregar, gate, diario y resolver."""
 from __future__ import annotations
 
-import copy
 import json
 from pathlib import Path
 

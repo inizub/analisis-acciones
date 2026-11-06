@@ -48,7 +48,8 @@ un minuto mientras uv prepara el entorno de Python.
 PY ejecucion.py iniciar --entrada "<TICKER> <modo>" --journal "JOURNAL"
 ```
 
-Escribe tú `<TICKER> <modo>` con los dos tokens extraídos (regla 1). Guarda `run_dir`, `ticker` y `modo`.
+Escribe tú `<TICKER> <modo>` con los dos tokens extraídos (regla 1). Guarda `run_dir`, `ticker` y `modo`. Si la
+salida trae `aviso_journal`, díselo al usuario al final (el diario está en una carpeta por defecto).
 
 ### 2. Datos (código)
 

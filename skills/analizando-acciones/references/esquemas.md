@@ -38,6 +38,7 @@ Todas las claves son opcionales; incluye solo lo que encuentres.
   "fundamentales": {"gasto_intereses": {"concepto": "Interest expense (10-K)", "serie": [<cifra>, <cifra>]}},
   "trimestrales": {"ingresos": {"concepto": "Ingresos trimestrales (6-K)", "serie": [<cifra con "periodo_inicio">]}},
   "banca": {"morosidad": <serie o cifra>, "coste_riesgo": <...>, "cet1": <...>, "cet1_requisito": <...>,
+            "capital_total": <...>, "capital_total_requisito": <...>,
             "crecimiento_prestamos": <...>, "crecimiento_depositos": <...>},
   "segmentos": [{"nombre": "Brasil", "tipo": "geografia", "ingresos": <cifra>},
                 {"nombre": "BRL", "tipo": "moneda", "ingresos": <cifra>},
@@ -63,6 +64,8 @@ Todas las claves son opcionales; incluye solo lo que encuentres.
   gastroenterology, hematology, infectious_disease, metabolic, neurology, oncology, ophthalmology, others, psychiatry,
   respiratory, urology.
 - `cet1_requisito`: el mínimo regulatorio total de CET1 de la entidad (incluidos colchones), como fracción.
+- Si la entidad no publica CET1 (p. ej. conglomerados prudenciales de instituciones de pago), usa `capital_total`
+  (ratio de capital regulatorio total) y `capital_total_requisito` (su mínimo). No pongas un ratio en el campo de otro.
 
 ## 3. analista_X.json
 

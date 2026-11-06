@@ -5,7 +5,6 @@ import pytest
 import baselines
 import comun
 from artefactos import cifra, dp_completo
-from dp_sintetico import crecer
 
 CFG = comun.cargar_config()
 

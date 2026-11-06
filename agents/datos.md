@@ -27,7 +27,9 @@ del emisor, comunicados de resultados y, por último, prensa financiera.
 5. Cambios de auditor, opinión de auditoría, cambios de políticas contables y factores de riesgo nuevos.
 6. Hechos materiales de los últimos 90 días.
 7. Bancos y entidades de crédito: morosidad, coste del riesgo, CET1 y su requisito regulatorio, crecimiento de
-   préstamos y de depósitos (al menos 3 ejercicios cuando existan).
+   préstamos y de depósitos (al menos 3 ejercicios cuando existan). Si la entidad no publica CET1, el ratio de
+   capital regulatorio total y su mínimo (`capital_total`, `capital_total_requisito`). Verifica estas cifras en el
+   texto del filing o del informe, no en un resumen de búsqueda.
 8. Si la acción cotiza como ADR: cuántas acciones ordinarias representa cada título (`empresa.ratio_adr`).
 9. Biotech: activos del pipeline (fase, área, indicación, próximo hito) y, solo si hay una estimación publicada
    con fuente, sus ventas pico.

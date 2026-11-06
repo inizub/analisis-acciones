@@ -5,8 +5,8 @@ import pytest
 
 import comun
 import gate
-from artefactos import (analista, cifra, dp_completo, escenarios, escribir_run, forense, motor, router, run, sintesis)
-from dp_sintetico import cifra_banca, serie
+from artefactos import (analista, dp_completo, escenarios, escribir_run, forense, motor, router, run, sintesis)
+from dp_sintetico import cifra_banca
 
 CFG = comun.cargar_config()
 
@@ -71,7 +71,7 @@ def test_cada_ruta_define_campos_criticos_y_los_del_ejemplo_general_existen():
     for ruta in PRIORIDAD:
         campos = gate.campos_criticos(ruta, CFG)
         assert (campos == []) == (ruta == "fuera_de_alcance")
-    assert "banca/cet1" in gate.campos_criticos("banco_credito", CFG)
+    assert "banca/cet1" not in gate.campos_criticos("banco_credito", CFG)       # el capital se comprueba aparte
     dp = dp_completo()
     assert [gate.comprobar_campo(dp, c) for c in gate.campos_criticos("general", CFG)] == [None] * 10
 
@@ -193,7 +193,6 @@ def test_sin_gasto_por_intereses_con_politica_estricta(monkeypatch):
 
 
 def test_banco_cet1_sobre_requisito():
-    from dp_sintetico import cifra_banca
     dp = dp_completo()
     dp["banca"] = {"cet1": cifra_banca([0.13]), "cet1_requisito": cifra_banca([0.115])}
     r = gate.punto_10(dp, "banco_credito", None, {}, CFG)
@@ -231,3 +230,20 @@ def test_cli(tmp_path):
     (tmp_path / "router.json").unlink()
     with pytest.raises(SystemExit):
         gate.main(["--dir", str(tmp_path), "--modo", "rapido"])
+
+
+def test_capital_bancario_cet1_o_capital_total():
+    from dp_sintetico import cifra_banca
+    dp = dp_completo()
+    assert gate.capital_bancario(dp) is None
+    assert any("capital_total" in f for f in gate.faltan_criticos(dp, "banco_credito", CFG))
+    dp["banca"] = {"capital_total": cifra_banca([0.166]), "capital_total_requisito": cifra_banca([0.105])}
+    cap = gate.capital_bancario(dp)
+    assert cap == {"tipo": "capital total", "valor": 0.166, "requisito": 0.105}
+    r = gate.punto_10(dp, "banco_credito", None, {}, CFG)
+    assert r["estado"] == "ok" and r["detalle"].startswith("capital total")
+    dp["banca"]["cet1"] = cifra_banca([0.13])
+    dp["banca"]["cet1_requisito"] = cifra_banca([0.115])
+    assert gate.capital_bancario(dp)["tipo"] == "CET1"                         # CET1 tiene prioridad
+    dp["banca"]["cet1"] = comun.desconocido("not_covered")
+    assert gate.capital_bancario(dp)["tipo"] == "capital total"

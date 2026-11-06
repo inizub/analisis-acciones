@@ -98,6 +98,26 @@ def campos_criticos(ruta: str, cfg: dict) -> list[str]:
     return [] if ruta == "fuera_de_alcance" else list(g["_comunes"]) + list(g[ruta])
 
 
+def capital_bancario(dp: dict) -> dict | None:
+    """Ratio de capital y su requisito: CET1 si el emisor lo publica; si no, el ratio de capital total regulatorio.
+    Devuelve {tipo, valor, requisito} o None si falta el par completo."""
+    banca = dp.get("banca") or {}
+    for tipo, clave in (("CET1", "cet1"), ("capital total", "capital_total")):
+        if comprobar_campo(dp, f"banca/{clave}") is None and comprobar_campo(dp, f"banca/{clave}_requisito") is None:
+            return {"tipo": tipo, "valor": ultimo_valor(banca[clave]),
+                    "requisito": ultimo_valor(banca[f"{clave}_requisito"])}
+    return None
+
+
+def faltan_criticos(dp: dict, ruta: str, cfg: dict) -> list[str]:
+    """Motivos de los campos críticos que faltan, incluido el capital en la ruta bancaria."""
+    faltan = [m for c in campos_criticos(ruta, cfg) if (m := comprobar_campo(dp, c))]
+    if ruta == "banco_credito" and capital_bancario(dp) is None:
+        faltan.append("banca/cet1 y banca/cet1_requisito (o, si no se publica CET1, banca/capital_total y "
+                      "banca/capital_total_requisito): sin datos con fuente y fecha")
+    return faltan
+
+
 def ultimo_valor(dp_nodo: Any) -> float | None:
     """Último valor de una serie o cifra; None si es desconocido o no existe."""
     if not dp_nodo or comun.es_desconocido(dp_nodo):
@@ -110,8 +130,14 @@ def ultimo_valor(dp_nodo: Any) -> float | None:
 # ---------------------------------------------------------------- puntos del checklist
 
 def punto_1(dp: dict, ruta: str, cfg: dict) -> dict:
-    fallos = [m for c in campos_criticos(ruta, cfg) if (m := comprobar_campo(dp, c))]
-    return _fallo("; ".join(fallos)) if fallos else _ok(f"{len(campos_criticos(ruta, cfg))} campos comprobados")
+    fallos = faltan_criticos(dp, ruta, cfg)
+    if fallos:
+        return _fallo("; ".join(fallos))
+    r = _ok(f"{len(campos_criticos(ruta, cfg))} campos comprobados")
+    cap = capital_bancario(dp) if ruta == "banco_credito" else None
+    if cap and cap["tipo"] != "CET1":
+        r["aviso"] = "El emisor no publica CET1: se usa el ratio de capital total regulatorio y su mínimo"
+    return r
 
 
 def punto_2(dp: dict) -> dict:
@@ -203,12 +229,12 @@ def cobertura_bajista(dp: dict, motor: dict | None, escenarios: dict[str, dict |
 def punto_10(dp: dict, ruta: str, motor: dict | None, escenarios: dict[str, dict | None], cfg: dict) -> dict:
     g = cfg["gate"]
     if ruta == "banco_credito":
-        banca = dp.get("banca") or {}
-        cet1, req = ultimo_valor(banca.get("cet1")), ultimo_valor(banca.get("cet1_requisito"))
-        if cet1 is None or req is None:
-            return _fallo("faltan CET1 o su requisito")
-        return _ok(f"CET1 {cet1:.2%} > requisito {req:.2%}") if cet1 > req else \
-            _fallo(f"CET1 {cet1:.2%} no supera el requisito {req:.2%}")
+        cap = capital_bancario(dp)
+        if cap is None:
+            return _fallo("faltan CET1 (o el ratio de capital total) y su requisito")
+        if cap["valor"] > cap["requisito"]:
+            return _ok(f"{cap['tipo']} {cap['valor']:.2%} > requisito {cap['requisito']:.2%}")
+        return _fallo(f"{cap['tipo']} {cap['valor']:.2%} no supera el requisito {cap['requisito']:.2%}")
     cob, motivo = cobertura_bajista(dp, motor, escenarios)
     if cob is None:
         deuda = ultimo_valor(dp["fundamentales"].get("deuda_total")) or 0

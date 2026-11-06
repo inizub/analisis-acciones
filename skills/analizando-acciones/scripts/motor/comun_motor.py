@@ -41,10 +41,6 @@ def crecimiento_con_desvanecimiento(g_alto: float, g_terminal: float, n: int = 1
     return [g_alto] * anios_altos + [g_alto + (g_terminal - g_alto) * k / resto for k in range(1, resto + 1)]
 
 
-def factor_descuento(tasa: float, t: float) -> float:
-    exigir(tasa > -1, "tasa de descuento ≤ -100 %")
-    return 1.0 / (1.0 + tasa) ** t
-
 
 def por_accion(valor_patrimonio: float, acciones: float) -> float:
     exigir(acciones > 0, "acciones debe ser positivo")

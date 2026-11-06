@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -9,7 +8,6 @@ import diario as dr
 import ejecucion
 import validar
 from artefactos import cifra, dp_completo, ejemplo, sintesis
-from motor.comun_motor import ErrorMotor
 
 MACRO = {"generado": "2026-11-06T00:00:00Z", "rf_usd": {"valor": 0.045}, "rf_eur": {"valor": 0.030},
          "tipos": {"etiqueta": "subiendo"}, "credito": {"etiqueta": "relajado"}, "curva": {"etiqueta": "normal"}}

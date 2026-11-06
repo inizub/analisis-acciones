@@ -44,7 +44,6 @@ def test_fco_sobre_beneficio_neto():
 
 
 def test_fco_no_aplica_con_perdidas():
-    ing = crecer(1000.0, 0.05, 6)
     r = forense.calcular(sano(beneficio_neto=[-50.0] * 6), "general", CFG)
     assert r["metricas"]["fco_beneficio_neto"]["estado"] == "no_aplica"
 
@@ -173,3 +172,10 @@ def test_cli(tmp_path):
     assert forense.main(["--datapack", str(tmp_path / "dp.json"), "--router", str(tmp_path / "router.json"),
                          "--salida", str(tmp_path / "f.json")]) == 0
     assert json.loads((tmp_path / "f.json").read_text(encoding="utf-8"))["ruta"] == "banco_credito"
+
+
+def test_capital_total_si_no_se_publica_cet1():
+    dp = sano()
+    dp["banca"] = {"capital_total": cifra_banca([0.112]), "capital_total_requisito": cifra_banca([0.105])}
+    m = forense.calcular(dp, "banco_credito", CFG)["metricas"]["cet1"]
+    assert m["estado"] == "evaluada" and m["grave"] is True and m["detalle"].startswith("Capital total")
