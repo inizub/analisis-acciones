@@ -87,6 +87,14 @@ def vol_relativa(accion: pd.Series, bench: pd.Series, anios: float) -> float | N
     return float((df.iloc[:, 0] - df.iloc[:, 1]).std(ddof=1) * np.sqrt(SEMANAS_ANIO))
 
 
+def vol_absoluta(serie: pd.Series, anios: float) -> float | None:
+    r = semanales(serie)
+    r = r.loc[r.index > r.index[-1] - pd.DateOffset(days=round(365.25 * anios))]
+    if len(r) < int(SEMANAS_ANIO * anios * 0.8):
+        return None
+    return float(r.std(ddof=1) * np.sqrt(SEMANAS_ANIO))
+
+
 def correlacion(accion: pd.Series, bench: pd.Series, anios: float) -> float | None:
     df = pd.concat([semanales(accion), semanales(bench)], axis=1, join="inner").dropna()
     df = df.loc[df.index > df.index[-1] - pd.DateOffset(days=round(365.25 * anios))]
@@ -115,6 +123,8 @@ def metricas_relativas(accion_eur: pd.Series, bench_eur: pd.Series) -> dict[str,
         res[f"rt_rel_{n}a"] = None if ra is None or rb is None else ra - rb
     res["vol_rel_1a"] = vol_relativa(a, b, 1)
     res["vol_rel_3a"] = vol_relativa(a, b, 3)
+    res["vol_1a"] = vol_absoluta(a, 1)
+    res["vol_3a"] = vol_absoluta(a, 3)
     res["correlacion_3a"] = correlacion(a, b, 3)
     ma, mb = momentum_12_1(a), momentum_12_1(b)
     res["momentum_12_1"] = ma

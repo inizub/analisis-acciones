@@ -73,7 +73,7 @@ def test_metricas_relativas_claves():
     a, b = paseo(1400, semilla=3), paseo(1400, semilla=4)
     m = precios.metricas_relativas(a, b)
     assert set(m) == {"rt_1a", "rt_bench_1a", "rt_rel_1a", "rt_3a", "rt_bench_3a", "rt_rel_3a", "rt_5a",
-                      "rt_bench_5a", "rt_rel_5a", "vol_rel_1a", "vol_rel_3a", "correlacion_3a",
+                      "rt_bench_5a", "rt_rel_5a", "vol_rel_1a", "vol_rel_3a", "vol_1a", "vol_3a", "correlacion_3a",
                       "momentum_12_1", "momentum_12_1_bench", "momentum_12_1_rel"}
     assert m["rt_rel_1a"] == pytest.approx(m["rt_1a"] - m["rt_bench_1a"])
     assert m["rt_5a"] is not None
