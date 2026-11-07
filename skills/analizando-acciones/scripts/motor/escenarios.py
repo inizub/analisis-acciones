@@ -2,11 +2,11 @@
 
 Pasos:
   1. Valor V_i por escenario con el método de la ruta (drivers del analista sobre la base de motor_inicial).
-  2. Precio esperado a h años: P_h,i = P0·(V_i/P0)^(h/T_conv), más el rendimiento al accionista (dividendos + recompras).
+  2. La diferencia entre precio y valor se cierra en T_conv años; aparte, una acción a su valor rinde como VWCE.
   3. Rentabilidad esperada de VWCE = Rf EUR + ERP.
-  4. Monte Carlo (semilla fija): se elige un escenario según p_i y se añade ruido t de Student (ν = 4, escalado a
-     varianza 1) con σ = volatilidad relativa histórica frente a VWCE en EUR, por √h.
-     E3 (caída ≥ 30 % en 12 meses) se simula con 12 pasos mensuales y la volatilidad absoluta de la acción.
+  4. Monte Carlo (semilla fija) de trayectorias mensuales, mezcla de los escenarios del analista (peso k) y del
+     escenario neutral (peso 1 − k). E0-E3, los percentiles y el exceso esperado salen de esas mismas trayectorias,
+     así que son coherentes entre sí (ver simular).
 
 Uso CLI:
     python escenarios.py --analista analista_A.json --motor motor_inicial.json [--ajustes ajustes.json] [--salida f.json]
@@ -53,6 +53,7 @@ from motor.sotp import valor_sotp  # noqa: E402
 METODO_POR_RUTA = {"general": "dcf_fcff", "crecimiento_perdidas": "dcf_ingresos", "ciclica": "dcf_normalizado",
                    "banco_credito": "excess_return", "biotech_precomercial": "rnpv", "holding": "sotp"}
 HORIZONTES = {"E0": 0.5, "E1": 1.0, "E2": 3.0}
+MESES = {ev: round(12 * h) for ev, h in HORIZONTES.items()}
 PASOS_E3 = 12
 
 
@@ -213,10 +214,11 @@ def cordura(rel: np.ndarray, cfg: dict) -> dict:
     mx, mn = float(np.max(rel)), float(np.min(rel))
     if mx * f < 1:
         motivo = (f"incluso el escenario más alto vale {mx:.2f} veces el precio (el precio es {1 / mx:.1f} veces ese valor; "
-                  f"límite {f:g}): revisa la base de ingresos y los supuestos antes de fiarte de las probabilidades")
+                  f"límite {f:g}): revisa la base de ingresos y los supuestos antes de fiarte de las probabilidades"
+                  ).replace(".", ",")
     elif mn > f:
         motivo = (f"incluso el escenario más bajo vale {mn:.2f} veces el precio (límite {f:g}): "
-                  f"revisa la base de ingresos y los supuestos antes de fiarte de las probabilidades")
+                  f"revisa la base de ingresos y los supuestos antes de fiarte de las probabilidades").replace(".", ",")
     else:
         motivo = ""
     return {"fiable": not motivo, "motivo": motivo, "valor_max_sobre_p0": mx, "valor_min_sobre_p0": mn,
@@ -229,9 +231,22 @@ def _ruido_t(rng: np.random.Generator, nu: float, size: Any) -> np.ndarray:
 
 
 def simular(valores_rel: np.ndarray, probs: np.ndarray, base: dict, cfg: dict) -> dict:
-    """valores_rel: V_i/P0 por escenario. Devuelve probabilidades E0-E3, percentiles y parámetros."""
+    """Un único modelo de trayectorias del que salen E0-E3, los percentiles y el exceso esperado (coherentes entre sí).
+
+    - Mezcla: con probabilidad k (`agregacion.k`) la trayectoria sigue un escenario del analista (elegido según p_i);
+      con 1 − k sigue el escenario neutral (precio = valor: V/P0 = 1). Es el encogimiento hacia la tasa base,
+      aplicado a la distribución entera y no a cada evento por separado.
+    - Rentabilidad relativa frente a VWCE (log, total con dividendos): R_t = ln(V/P0)·min(t, T)/T − σ_rel²·t/2 + ruido.
+      Una acción a su valor rinde en media (aritmética) lo mismo que VWCE: su p de batir a VWCE queda algo por debajo
+      de 0,5 por la asimetría (≈ 0,45 con σ_rel = 25 %), la tasa base empírica.
+    - VWCE (log): B_t = (ln(1 + r_vw) − σ_b²/2)·t + ruido, con σ_b = √(σ_abs² − σ_rel²) para que la acción tenga su
+      volatilidad absoluta. Precio de la acción (sin dividendos): B_t + R_t − ln(1 + y)·t.
+    - Pasos mensuales con ruido t de Student (ν de config.yaml). E0/E1/E2: R > 0 a 6/12/36 meses. E3: el mínimo del
+      precio en 12 meses cae al umbral. rel_12m = exp(B+R) − exp(B), así que p(E1) = fracción de rel_12m > 0.
+    """
     esc = cfg["escenarios"]
     T, n, nu = esc["T_conv_anios"], esc["mc_sims"], esc["t_nu"]
+    k = cfg["agregacion"]["k"]
     caida = cfg["eventos"]["E3_caida"]
     rng = np.random.default_rng(esc["semilla"])
     y = base.get("rendimiento_accionista", 0.0)
@@ -239,27 +254,35 @@ def simular(valores_rel: np.ndarray, probs: np.ndarray, base: dict, cfg: dict) -
     s_rel = base["vol_rel"]
     s_abs = base.get("vol_abs", s_rel)
     exigir(s_rel > 0 and s_abs > 0, "las volatilidades deben ser positivas")
+    s_b = math.sqrt(max(s_abs ** 2 - s_rel ** 2, 0.0))
+    meses = max(MESES.values())
+    dt = 1 / 12
+    t = np.arange(1, meses + 1) * dt
+    modelo = rng.random(n) < k
     idx = rng.choice(len(probs), size=n, p=probs)
-    log_v = np.log(valores_rel)[idx]
-    res: dict[str, Any] = {}
-    rel12 = None
-    for ev, h in HORIZONTES.items():
-        accion = (h / T) * log_v + h * math.log1p(y)
-        bench = h * math.log1p(r_vw)
-        ruido = _ruido_t(rng, nu, n) * s_rel * math.sqrt(h)
-        rel = np.exp(accion + ruido) - math.exp(bench)
-        res[ev] = float(np.mean(rel > 0))
-        if ev == "E1":
-            rel12 = rel
-    # E3: trayectoria mensual del precio (sin dividendos) en 12 meses.
-    deriva = (log_v / T) / PASOS_E3
-    pasos = _ruido_t(rng, nu, (n, PASOS_E3)) * s_abs * math.sqrt(1 / PASOS_E3) + deriva[:, None]
-    minimo = np.minimum.accumulate(np.cumsum(pasos, axis=1), axis=1)[:, -1]
-    res["E3"] = float(np.mean(minimo <= math.log1p(caida)))
+    log_v = np.where(modelo, np.log(valores_rel)[idx], 0.0)
+    R = np.cumsum(_ruido_t(rng, nu, (n, meses)) * (s_rel * math.sqrt(dt)), axis=1)
+    R += log_v[:, None] * (np.minimum(t, T) / T)[None, :] - 0.5 * s_rel ** 2 * t[None, :]
+    B = np.cumsum(_ruido_t(rng, nu, (n, meses)) * (s_b * math.sqrt(dt)), axis=1)
+    B += (math.log1p(r_vw) - 0.5 * s_b ** 2) * t[None, :]
+    precio12 = B[:, :PASOS_E3] + R[:, :PASOS_E3] - math.log1p(y) * t[None, :PASOS_E3]
+    e3 = np.min(precio12, axis=1) <= math.log1p(caida)
+    rel12 = np.exp(B[:, 11] + R[:, 11]) - np.exp(B[:, 11])
+
+    def probs_de(mascara: np.ndarray) -> dict | None:
+        if not mascara.any():
+            return None
+        r = {ev: float(np.mean(R[mascara, m - 1] > 0)) for ev, m in MESES.items()}
+        r["E3"] = float(np.mean(e3[mascara]))
+        return r
+
     p5, p50, p95 = (float(x) for x in np.percentile(rel12, [5, 50, 95]))
-    return {"probabilidades": res, "rel_12m_p5_p50_p95": [p5, p50, p95],
+    return {"probabilidades": probs_de(np.ones(n, dtype=bool)), "probabilidades_modelo": probs_de(modelo),
+            "probabilidades_neutral": probs_de(~modelo), "rel_12m_p5_p50_p95": [p5, p50, p95],
+            "rel_12m_cuantiles": [float(x) for x in np.percentile(rel12, np.arange(1, 100))],
             "parametros": {"mc_sims": n, "semilla": esc["semilla"], "t_nu": nu, "T_conv_anios": T, "vol_rel": s_rel,
-                           "vol_abs": s_abs, "rentabilidad_vwce": r_vw, "rendimiento_accionista": y}}
+                           "vol_abs": s_abs, "vol_vwce_implicita": s_b, "rentabilidad_vwce": r_vw,
+                           "rendimiento_accionista": y, "peso_modelo": k}}
 
 
 def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict | None = None) -> dict:
@@ -286,9 +309,10 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     exigir(np.all(rel > 0), "un escenario tiene valor ≤ 0: el modelo no admite pérdida total; usa un valor positivo mínimo")
     sim = simular(rel, probs, base, cfg)
     T = cfg["escenarios"]["T_conv_anios"]
-    y = base.get("rendimiento_accionista", 0.0)
+    k = cfg["agregacion"]["k"]
     r_vw = base["rf_eur"] + base["erp_vwce"]
-    esperada = float(np.sum(probs * (rel ** (1 / T) * (1 + y)))) - 1
+    # Media aritmética a 12 meses de la misma mezcla: (1 + r_vw)·[k·Σ p_i·(V_i/P0)^(1/T) + (1 − k)] − 1
+    esperada = (1 + r_vw) * (k * float(np.sum(probs * rel ** (1 / T))) + (1 - k)) - 1
     bajista = next(e for e in escenarios if e["nombre"] == "bajista")
     umbral_e4 = a["metrica_e4"]["valor_base"]
     p_e4 = sum(e["p"] for e in escenarios if e["valor_metrica_e4"] >= umbral_e4)
@@ -296,7 +320,9 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     return {
         "ticker": a["ticker"], "fecha_analisis": a["fecha_analisis"], "analista": a["encuadre"], "ruta": ruta,
         "metodo": METODO_POR_RUTA[ruta], "precio0": p0, "escenarios": escenarios, "probabilidades": probabilidades,
-        "rel_12m_p5_p50_p95": sim["rel_12m_p5_p50_p95"], "cordura": cordura(rel, cfg),
+        "probabilidades_modelo": sim["probabilidades_modelo"], "probabilidades_neutral": sim["probabilidades_neutral"],
+        "rel_12m_p5_p50_p95": sim["rel_12m_p5_p50_p95"], "rel_12m_cuantiles": sim["rel_12m_cuantiles"],
+        "cordura": cordura(rel, cfg),
         "exceso_anual_esperado_pp": 100 * (esperada - r_vw),
         "rentabilidad_anual_esperada": esperada,
         "perdida_escenario_bajista": max(0.0, 1 - bajista["valor_sobre_p0"]),

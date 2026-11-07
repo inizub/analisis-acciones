@@ -251,21 +251,30 @@ def test_capital_bancario_cet1_o_capital_total():
 
 # ---------------------------------------------------------------- 12: cordura del modelo
 
-def test_modelo_no_fiable_falla_el_checklist_con_el_motivo():
+def _cfg_cordura(bloquea):
+    c = copy.deepcopy(CFG)
+    c["cordura"]["bloquea"] = bloquea
+    return c
+
+
+def test_modelo_no_fiable_es_un_aviso_salvo_que_config_lo_bloquee():
     esc = escenarios("A")
     esc["cordura"] = {"fiable": False, "motivo": "incluso el escenario más alto vale 0,25 veces el precio"}
     art = run("rapido", escenarios={"N": {**esc, "analista": "N"}})
-    r = gate.evaluar(art["dp"], art["router"], "rapido", "final", art["motor"], art["analistas"], art["escenarios"],
-                     art["forense"], art["sintesis"])
+    args = (art["dp"], art["router"], "rapido", "final", art["motor"], art["analistas"], art["escenarios"],
+            art["forense"], art["sintesis"])
+    r = gate.evaluar(*args, cfg=_cfg_cordura(False))
+    assert r["pasa"] and any("0,25 veces el precio" in a for a in r["avisos"])
+    r = gate.evaluar(*args, cfg=_cfg_cordura(True))
     assert not r["pasa"] and fallos(r) == {12}
     assert "modelo no fiable" in r["fallos"][0] and "0,25 veces el precio" in r["fallos"][0]
 
 
 def test_cordura_fiable_o_sin_dato_no_falla():
     esc = escenarios("A")
-    assert gate.punto_12({"A": esc}, ["A"])["estado"] == "no_evaluado"
+    assert gate.punto_12({"A": esc}, ["A"], CFG)["estado"] == "no_evaluado"
     esc["cordura"] = {"fiable": True, "motivo": ""}
-    assert gate.punto_12({"A": esc}, ["A"])["estado"] == "ok"
+    assert gate.punto_12({"A": esc}, ["A"], CFG)["estado"] == "ok"
 
 
 def test_cierre_anticipado_por_modelo_no_fiable_no_cuenta_la_falta_de_sintesis_como_fallo():
@@ -273,11 +282,11 @@ def test_cierre_anticipado_por_modelo_no_fiable_no_cuenta_la_falta_de_sintesis_c
            for n in ("A", "B")}
     art = run("completo", escenarios=esc)
     r = gate.evaluar(art["dp"], art["router"], "completo", "final", art["motor"], art["analistas"], esc,
-                     art["forense"], None)
+                     art["forense"], None, cfg=_cfg_cordura(True))
     assert fallos(r) == {12}
     assert r["items"]["7"]["estado"] == "no_evaluado" and r["items"]["8"]["estado"] == "no_evaluado"
     # con modelo fiable y sin síntesis, la falta de síntesis sigue siendo un fallo
     sana = {n: {**escenarios(n), "cordura": {"fiable": True, "motivo": ""}} for n in ("A", "B")}
     r2 = gate.evaluar(art["dp"], art["router"], "completo", "final", art["motor"], art["analistas"], sana,
-                      art["forense"], None)
+                      art["forense"], None, cfg=_cfg_cordura(True))
     assert {7, 8} <= fallos(r2)

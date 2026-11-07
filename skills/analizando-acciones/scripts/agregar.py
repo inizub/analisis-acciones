@@ -1,4 +1,4 @@
-"""Agrega las probabilidades de los analistas, las encoge hacia la tasa base y aplica las reglas del veredicto (A6.6, A1).
+"""Agrega las probabilidades de los analistas y aplica las reglas del veredicto (A6.6, A1).
 
 Uso CLI:
     python agregar.py --dir RUN_DIR --modo completo|rapido|degradado [--analistas A B] [--salida agregado.json]
@@ -7,8 +7,10 @@ Lee de RUN_DIR: escenarios_<X>.json (salida de escenarios.py de cada analista), 
 y forense.json o forense_metricas.json (banderas). Escribe agregado.json.
 
 Por evento:
-  E0-E2  p_agg = sigmoide(media(logit(p_A), logit(p_B)));  p_final = b + k·(p_agg − b), b = 0,45 y k = 0,4
-  E3, E4 p_agg igual, sin encoger y limitada a [0,05; 0,95]
+  p_agg = media de las p de A y B (mezcla de sus distribuciones: mantiene la coherencia entre eventos).
+  El encogimiento hacia la tasa base ya va dentro de cada distribución (escenarios.simular mezcla los escenarios
+  del analista con el escenario neutral, peso k): p_final = p_agg; E3 y E4 limitadas a [0,05; 0,95].
+  Los percentiles de la rentabilidad relativa a 12 meses son los de la mezcla de A y B (no la media de percentiles).
   Con un solo analista (modo rápido o degradado) p_agg = p del analista.
   E4: la métrica la fija la ruta; si A y B proponen umbrales distintos, se usa la media y la p(E4) de cada analista se
   recalcula contra ese umbral común con sus propios escenarios.
@@ -22,35 +24,25 @@ conservador: la spec no fija la precedencia).
 from __future__ import annotations
 
 import argparse
-import math
 import sys
 from pathlib import Path
+
+import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comun  # noqa: E402
 
 EVENTOS = ["E0", "E1", "E2", "E3", "E4"]
-EVENTOS_ENCOGIDOS = ["E0", "E1", "E2"]
+EVENTOS_LIMITADOS = ["E3", "E4"]
 EPS = 1e-9
-LOGIT_MIN = 1e-6
 
 
-def logit(p: float) -> float:
-    p = min(max(p, LOGIT_MIN), 1 - LOGIT_MIN)
-    return math.log(p / (1 - p))
-
-
-def sigmoide(x: float) -> float:
-    return 1 / (1 + math.exp(-x))
-
-
-def agregar_logit(ps: list[float]) -> float:
-    """Media de log-odds devuelta a probabilidad."""
-    return sigmoide(sum(logit(p) for p in ps) / len(ps))
-
-
-def encoger(p_agg: float, b: float, k: float) -> float:
-    return b + k * (p_agg - b)
+def percentiles_mezcla(cuantiles: list[list[float]], ps=(5, 50, 95)) -> list[float]:
+    """Percentiles de una mezcla a partes iguales de distribuciones dadas por sus cuantiles 1-99."""
+    niveles = np.arange(1, 100) / 100
+    xs = np.unique(np.concatenate([np.asarray(q, dtype=float) for q in cuantiles]))
+    F = np.mean([np.interp(xs, q, niveles, left=0.0, right=1.0) for q in cuantiles], axis=0)
+    return [float(np.interp(p / 100, F, xs)) for p in ps]
 
 
 def limitar(p: float, clip: list[float]) -> float:
@@ -137,16 +129,19 @@ def agregar(escenarios: dict[str, dict], modo: str, cfg: dict | None = None, ban
     p_agg, p_final, dispersion = {}, {}, {}
     for e in EVENTOS:
         ps = [por_analista[n][e] for n in nombres]
-        p_agg[e] = agregar_logit(ps) if len(ps) > 1 else ps[0]
+        p_agg[e] = media(ps)
         dispersion[e] = abs(ps[0] - ps[1]) if len(ps) > 1 else None
-        if e in EVENTOS_ENCOGIDOS:
-            p_final[e] = encoger(p_agg[e], ag["tasa_base_exceso"], ag["k"])
-        else:
-            p_final[e] = limitar(p_agg[e], ag["clip_E3_E4"])
+        p_final[e] = limitar(p_agg[e], ag["clip_E3_E4"]) if e in EVENTOS_LIMITADOS else p_agg[e]
 
     exceso = media([escenarios[n]["exceso_anual_esperado_pp"] for n in nombres])
     perdida = max(escenarios[n]["perdida_escenario_bajista"] for n in nombres)
-    percentiles = [media([escenarios[n]["rel_12m_p5_p50_p95"][i] for n in nombres]) for i in range(3)]
+    if all(escenarios[n].get("rel_12m_cuantiles") for n in nombres):
+        percentiles = percentiles_mezcla([escenarios[n]["rel_12m_cuantiles"] for n in nombres])
+    else:  # salidas antiguas sin cuantiles
+        percentiles = [media([escenarios[n]["rel_12m_p5_p50_p95"][i] for n in nombres]) for i in range(3)]
+    neutrales = [(escenarios[n].get("probabilidades_neutral") or {}).get("E1") for n in nombres]
+    calculada = all(x is not None for x in neutrales)
+    tasa_base = media(neutrales) if calculada else ag["tasa_base_exceso"]
     banderas = banderas or []
     cond = condiciones_veredicto(p_final["E1"], exceso, perdida, banderas, reverse_dcf, cfg)
     ver, motivo = veredicto(cond)
@@ -155,7 +150,7 @@ def agregar(escenarios: dict[str, dict], modo: str, cfg: dict | None = None, ban
         "metrica_e4": metrica_e4, "p_por_analista": por_analista, "p_agg": p_agg, "p_final": p_final,
         "dispersion": dispersion,
         "exceso_anual_esperado_pp": exceso, "perdida_escenario_bajista": perdida, "rel_12m_p5_p50_p95": percentiles,
-        "tasa_base": ag["tasa_base_exceso"], "tasa_base_tipo": "heuristica", "k": ag["k"],
+        "tasa_base": tasa_base, "tasa_base_tipo": "calculada" if calculada else "heuristica", "k": ag["k"],
         "veredicto": ver, "motivo_veredicto": motivo, "condiciones": cond,
     }
 

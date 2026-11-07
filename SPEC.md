@@ -322,13 +322,15 @@ Todas las funciones devuelven valor por acción, puente de valor y supuestos usa
 - **`escenarios.py`**
   - **Entrada:** drivers y probabilidades por escenario de un analista, más `ajustes.json` opcional.
   - **Pasos:**
-    1. Valor V_i por escenario, con el método de la ruta.
-    2. Precio esperado a horizonte h (en años): P_h,i = P0 × (V_i/P0)^(h/T_conv), con T_conv = 3 años (`config.yaml`), más dividendos y recompras.
+    1. Valor V_i por escenario, con el método de la ruta. En la ruta cíclica, si el analista da `crecimiento_ingresos`, se usa el DCF de 10 años con el margen convergiendo al normalizado.
+    2. La diferencia entre precio y valor se cierra en T_conv = 3 años (`config.yaml`); aparte, una acción a su valor rinde en media (aritmética) lo mismo que VWCE.
     3. Rentabilidad de VWCE esperada = Rf EUR + ERP (Damodaran).
-    4. Monte Carlo de 100.000 simulaciones con semilla fija: se elige un escenario según p_i y se añade ruido t de Student (ν = 4) con σ = volatilidad relativa histórica frente a VWCE en EUR (a 3 años, o 1 año si no hay datos), escalada a √h.
+    4. Monte Carlo de 100.000 trayectorias mensuales con semilla fija y ruido t de Student (ν = 4). Cada trayectoria sigue, con probabilidad k = 0,4, un escenario del analista (según p_i) y, con 1 − k, el escenario neutral (V = P0). La rentabilidad relativa frente a VWCE usa la volatilidad relativa histórica en EUR; el precio, la volatilidad absoluta.
+    5. **Coherencia:** E0-E3, los percentiles y el exceso esperado salen de esas mismas trayectorias. No se encoge cada evento por separado (eso producía, p. ej., 28 % de batir a VWCE junto a 81 % de caer un 30 % y un p95 negativo). *Cambio de noviembre de 2026 respecto a la versión inicial, a petición del usuario.*
   - **Salida por analista:**
-    - p(E0), p(E1), p(E2), p(E3);
-    - percentiles p5/p50/p95 de la rentabilidad relativa a 12 meses;
+    - p(E0), p(E1), p(E2), p(E3) de la mezcla, y por separado las del modelo y las del escenario neutral;
+    - percentiles p5/p50/p95 (y cuantiles 1-99) de la rentabilidad relativa a 12 meses;
+    - cordura: si el precio queda a más de 2× del rango de valores de los escenarios, aviso (o bloqueo, según `config.yaml`);
     - exceso de rentabilidad anual esperado;
     - pérdida en el escenario bajista;
     - p(E4) = suma de p_i de los escenarios cuya métrica E4 ≥ el valor base.
@@ -351,8 +353,9 @@ Calcula métricas y banderas con umbrales en `config.yaml`:
 Las banderas `invalidante` las asigna el agente `forense` (p. ej. opinión de auditoría con salvedades, reexpresión de cuentas).
 
 ### A6.6 `agregar.py`
-- Por evento E0-E3: p_agg = sigmoide(media(logit(p_A), logit(p_B))). En modo rápido o degradado: p_agg = p_N.
-- Encogimiento hacia la tasa base: p_final = b + k × (p_agg − b), con b = 0,45 y k = 0,4 para E0-E2 (de `config.yaml`, marcados `tasa_base_tipo: heuristica`). E3 y E4 se reportan sin encoger, limitados a [0,05; 0,95].
+- Por evento: p_agg = media de p_A y p_B (mezcla de sus distribuciones, que conserva la coherencia entre eventos). En modo rápido o degradado: p_agg = p_N.
+- El encogimiento hacia la tasa base ya va dentro de cada distribución (paso 4 de `escenarios.py`): p_final = p_agg. La tasa base es la p(E1) del escenario neutral (`tasa_base_tipo: calculada`; ≈ 0,45 con volatilidad relativa del 25 %). E3 y E4 se limitan a [0,05; 0,95].
+- Percentiles de la rentabilidad relativa: los de la mezcla de A y B, no la media de percentiles.
 - `dispersion` = |p_A − p_B| por evento; se reporta como señal de desacuerdo.
 - Aplica las reglas de veredicto de A1.
 
@@ -370,6 +373,7 @@ Checklist (adaptado de la sección 8 del documento metodológico). Cualquier fal
 9. Ninguna bandera forense `invalidante`.
 10. El balance sobrevive al escenario bajista: cobertura de intereses > 1,5 en el bajista; en bancos, CET1 sobre el requisito.
 11. Datos de precio con antigüedad ≤ 3 días.
+12. Cordura del modelo: el precio no queda a más de 2× del rango de valores de los escenarios. Por defecto es un aviso visible en el resumen; con `cordura.bloquea: true` es un fallo y el flujo salta red team y juez.
 
 ### A6.8 Otros
 - **`validar.py`:** valida cualquier artefacto contra su esquema de `assets/schemas/`.

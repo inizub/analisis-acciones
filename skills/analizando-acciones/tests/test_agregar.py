@@ -5,39 +5,35 @@ import pytest
 import agregar
 from artefactos import escenarios as esc, motor, run
 
-B, K = 0.45, 0.4
-
-
-def test_logit_sigmoide_y_media():
-    assert agregar.sigmoide(agregar.logit(0.73)) == pytest.approx(0.73)
-    assert agregar.agregar_logit([0.8, 0.2]) == pytest.approx(0.5)
-    # media de log-odds: logit(.7)=0,8473; logit(.5)=0 → sigmoide(0,4236)
-    assert agregar.agregar_logit([0.7, 0.5]) == pytest.approx(agregar.sigmoide(agregar.logit(0.7) / 2))
-    assert agregar.agregar_logit([0.6]) == pytest.approx(0.6)
-    assert 0.9 < agregar.agregar_logit([1.0, 0.9]) < 1.0          # los extremos no producen infinitos
-
-
-def test_encoger_y_limitar():
-    assert agregar.encoger(0.70, B, K) == pytest.approx(0.55)      # p_agg 0,70 es el mínimo para p_final 0,55
-    assert agregar.encoger(0.45, B, K) == pytest.approx(0.45)
-    assert agregar.encoger(0.0, B, K) == pytest.approx(0.27)
+def test_limitar_y_percentiles_de_la_mezcla():
     assert agregar.limitar(0.99, [0.05, 0.95]) == 0.95 and agregar.limitar(0.01, [0.05, 0.95]) == 0.05
+    # mezcla a partes iguales de dos uniformes U(0, 1) y U(1, 2): la mediana es 1 y el p5, 0,1
+    u1 = [q / 100 for q in range(1, 100)]
+    u2 = [1 + q / 100 for q in range(1, 100)]
+    p5, p50, p95 = agregar.percentiles_mezcla([u1, u2])
+    assert p50 == pytest.approx(1.0, abs=0.02) and p5 == pytest.approx(0.10, abs=0.02) and p95 == pytest.approx(1.90, abs=0.02)
 
 
 def test_agregacion_completa():
     a = {"A": esc("A", e1=.80, e3=.20, exceso=9.0, perdida=.20), "B": esc("B", e1=.60, e3=.02, exceso=5.0, perdida=.35)}
     r = agregar.agregar(a, "completo")
-    esperado = agregar.sigmoide((agregar.logit(.80) + agregar.logit(.60)) / 2)
-    assert r["p_agg"]["E1"] == pytest.approx(esperado)
-    assert r["p_final"]["E1"] == pytest.approx(B + K * (esperado - B))
+    # media lineal (mezcla de las dos distribuciones), sin encogimiento adicional: ya va dentro de escenarios.py
+    assert r["p_agg"]["E1"] == pytest.approx(0.70) and r["p_final"]["E1"] == pytest.approx(0.70)
     assert r["dispersion"]["E1"] == pytest.approx(0.20)
-    # E3 sin encoger y limitada a [0,05; 0,95]
-    assert r["p_final"]["E3"] == pytest.approx(agregar.agregar_logit([.20, .02]))
-    assert r["p_final"]["E3"] >= 0.05
+    assert r["p_final"]["E3"] == pytest.approx(0.11)
     assert r["exceso_anual_esperado_pp"] == pytest.approx(7.0)    # media
     assert r["perdida_escenario_bajista"] == pytest.approx(0.35)  # peor caso
-    assert r["tasa_base"] == 0.45 and r["tasa_base_tipo"] == "heuristica" and r["k"] == 0.4
-    assert r["analistas"] == ["A", "B"]
+    assert r["k"] == 0.4 and r["analistas"] == ["A", "B"]
+    # salidas sin p neutral (antiguas): tasa base heurística de config.yaml
+    assert r["tasa_base"] == 0.45 and r["tasa_base_tipo"] == "heuristica"
+
+
+def test_tasa_base_calculada_con_el_escenario_neutral():
+    a, b = esc("A"), esc("B")
+    a["probabilidades_neutral"] = {"E0": .47, "E1": .44, "E2": .40, "E3": .08}
+    b["probabilidades_neutral"] = {"E0": .47, "E1": .46, "E2": .40, "E3": .08}
+    r = agregar.agregar({"A": a, "B": b}, "completo")
+    assert r["tasa_base"] == pytest.approx(0.45) and r["tasa_base_tipo"] == "calculada"
 
 
 def test_e3_se_limita_a_5_por_ciento():
@@ -47,8 +43,7 @@ def test_e3_se_limita_a_5_por_ciento():
 
 def test_un_solo_analista_no_agrega_ni_tiene_dispersion():
     r = agregar.agregar({"N": esc("N", e1=.66)}, "rapido")
-    assert r["p_agg"]["E1"] == 0.66 and r["dispersion"]["E1"] is None
-    assert r["p_final"]["E1"] == pytest.approx(B + K * (0.66 - B))
+    assert r["p_agg"]["E1"] == 0.66 and r["dispersion"]["E1"] is None and r["p_final"]["E1"] == 0.66
 
 
 def test_modo_y_analistas_invalidos():
@@ -70,14 +65,14 @@ def ver(e1, exceso=8.0, perdida=0.30, banderas=None, motor_=None, **kw):
 
 
 def test_atractiva():
-    r = ver(.75)   # p_agg .75 → p_final .57
+    r = ver(.75)
     assert r["veredicto"] == "atractiva" and all(r["condiciones"]["atractiva"].values())
 
 
 def test_frontera_exacta_p_final_055():
-    r = ver(.70)   # p_final = 0,55 exacto: debe contar como ≥ 0,55
+    r = ver(.55)   # p_final = 0,55 exacto: debe contar como ≥ 0,55
     assert r["p_final"]["E1"] == pytest.approx(0.55) and r["veredicto"] == "atractiva"
-    assert ver(.699)["veredicto"] == "neutral"
+    assert ver(.549)["veredicto"] == "neutral"
 
 
 @pytest.mark.parametrize("kw,falta", [({"exceso": 4.9}, "exceso"), ({"perdida": 0.51}, "pérdida")])
@@ -98,10 +93,10 @@ def test_banderas_graves_bloquean_atractiva_pero_no_las_informativas():
 
 
 def test_no_atractiva_por_probabilidad():
-    r = ver(.30)   # p_final = 0,45 + 0,4·(0,30 − 0,45) = 0,39
+    r = ver(.39)
     assert r["veredicto"] == "no_atractiva" and r["p_final"]["E1"] == pytest.approx(0.39)
-    assert ver(.3125)["veredicto"] == "no_atractiva"       # p_final 0,395
-    assert ver(.375)["veredicto"] == "neutral"             # p_final 0,42
+    assert ver(.40)["veredicto"] == "no_atractiva"         # frontera incluida
+    assert ver(.42)["veredicto"] == "neutral"
 
 
 def test_no_atractiva_por_dcf_inverso_sin_raiz_aunque_lo_demas_sea_atractivo():
@@ -135,7 +130,7 @@ def test_e4_umbral_comun_recalcula_la_p_de_cada_analista():
     assert r["metrica_e4"]["valores_propuestos"] == {"A": 0.08, "B": 0.06}
     assert r["p_por_analista"]["A"]["E4"] == pytest.approx(0.75)
     assert r["p_por_analista"]["B"]["E4"] == pytest.approx(0.25)
-    assert r["p_agg"]["E4"] == pytest.approx(agregar.agregar_logit([.75, .25]))
+    assert r["p_agg"]["E4"] == pytest.approx(0.50)
 
 
 def test_e4_metricas_distintas_es_un_error():

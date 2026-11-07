@@ -61,33 +61,63 @@ def todos_en_p0(analista, base):
     return a
 
 
-def test_todos_los_escenarios_en_p0_y_benchmark_nulo_da_05():
-    b = dict(BASE, rf_eur=0.0, erp_vwce=0.0)
-    r = escenarios.ejecutar(todos_en_p0(ANALISTA, b), {"base": b}, cfg=cfg())
-    assert all(e["valor_sobre_p0"] == pytest.approx(1.0, abs=1e-9) for e in r["escenarios"])
-    for ev in ("E0", "E1", "E2"):
-        assert r["probabilidades"][ev] == pytest.approx(0.5, abs=0.005)
-    assert r["exceso_anual_esperado_pp"] == pytest.approx(0.0, abs=1e-9)
+def _p_neutral_teorica(h, s_rel):
+    """p(R_h > 0) con R_h ≈ N(−σ²h/2, σ²h): la suma de pasos t mensuales se aproxima a una normal."""
+    return 1 - stats.norm.cdf(0.5 * s_rel * math.sqrt(h))
 
 
-def test_todos_en_p0_con_benchmark_positivo_baja_de_05_lo_esperado():
-    """p(E1) ≈ 0,5 menos el efecto de la rentabilidad esperada de VWCE: P(σ·Z > ln(1 + r_vw)), Z ~ t₄ escalada."""
-    r = escenarios.ejecutar(todos_en_p0(ANALISTA, BASE), {"base": BASE}, cfg=cfg())
-    r_vw = BASE["rf_eur"] + BASE["erp_vwce"]
-    nu = 4
-    teorico = {ev: 1 - stats.t.cdf(math.log1p(r_vw) * h / (BASE["vol_rel"] * math.sqrt(h)) / math.sqrt((nu - 2) / nu), nu)
-               for ev, h in escenarios.HORIZONTES.items()}
-    for ev in ("E0", "E1", "E2"):
-        assert r["probabilidades"][ev] < 0.5
-        assert r["probabilidades"][ev] == pytest.approx(teorico[ev], abs=0.005)
-    assert r["exceso_anual_esperado_pp"] == pytest.approx(-100 * r_vw)
+def test_todos_en_p0_da_la_tasa_base_por_asimetria_sea_cual_sea_vwce():
+    """Una acción a su valor rinde en media como VWCE: p(batir) = P(N(−σ²h/2, σ²h) > 0) < 0,5, sin depender de r_vw."""
+    for b in (dict(BASE, rf_eur=0.0, erp_vwce=0.0), BASE):
+        r = escenarios.ejecutar(todos_en_p0(ANALISTA, b), {"base": b}, cfg=cfg())
+        assert all(e["valor_sobre_p0"] == pytest.approx(1.0, abs=1e-9) for e in r["escenarios"])
+        for ev, h in escenarios.HORIZONTES.items():
+            assert r["probabilidades"][ev] == pytest.approx(_p_neutral_teorica(h, b["vol_rel"]), abs=0.01)
+        assert r["exceso_anual_esperado_pp"] == pytest.approx(0.0, abs=1e-9)
+    assert r["probabilidades"]["E1"] == pytest.approx(0.45, abs=0.01)       # σ_rel = 25 % → la tasa base empírica
 
 
 def test_e3_aumenta_con_la_volatilidad():
     a = todos_en_p0(ANALISTA, BASE)
-    baja = escenarios.ejecutar(a, {"base": dict(BASE, vol_abs=0.15)}, cfg=cfg(40_000))["probabilidades"]["E3"]
+    baja = escenarios.ejecutar(a, {"base": dict(BASE, vol_abs=0.26)}, cfg=cfg(40_000))["probabilidades"]["E3"]
     alta = escenarios.ejecutar(a, {"base": dict(BASE, vol_abs=0.60)}, cfg=cfg(40_000))["probabilidades"]["E3"]
-    assert baja < 0.02 < alta
+    assert baja < alta and baja < 0.15 and alta > 0.25
+
+
+# ---------------------------------------------------------------- coherencia entre eventos
+
+@pytest.mark.parametrize("precio", [10.0, 25.0, 40.0, 70.0, 160.0])
+def test_eventos_y_percentiles_salen_de_la_misma_distribucion(precio):
+    r = escenarios.ejecutar(ANALISTA, {"base": dict(BASE, precio0=precio)}, cfg=cfg(50_000))
+    p, (p5, p50, p95) = r["probabilidades"], r["rel_12m_p5_p50_p95"]
+    # p(E1) es la fracción de rel_12m > 0: los percentiles no pueden contradecirla
+    if p95 < 0:
+        assert p["E1"] < 0.05
+    if p5 > 0:
+        assert p["E1"] > 0.95
+    assert (p50 > 0) == (p["E1"] > 0.5)
+    # batir a VWCE y caer ≥ 30 % no pueden ser a la vez muy probables
+    assert p["E1"] + p["E3"] <= 1.05
+    # el exceso esperado tiene el signo del valor frente al precio
+    v = sum(e["p"] * e["valor_sobre_p0"] for e in r["escenarios"])
+    if v > 1.3:
+        assert r["exceso_anual_esperado_pp"] > 0 and p["E1"] > 0.45
+    if v < 0.7:
+        assert r["exceso_anual_esperado_pp"] < 0 and p["E1"] < 0.45
+
+
+def test_cuanto_mas_caro_menos_p_de_batir_y_mas_p_de_caer():
+    ps = [escenarios.ejecutar(ANALISTA, {"base": dict(BASE, precio0=x)}, cfg=cfg(30_000))["probabilidades"]
+          for x in (20.0, 40.0, 80.0, 160.0)]
+    e1, e3 = [q["E1"] for q in ps], [q["E3"] for q in ps]
+    assert e1 == sorted(e1, reverse=True) and e3 == sorted(e3)
+
+
+def test_la_mezcla_con_el_neutral_modera_los_extremos():
+    """Aun con todos los escenarios a 1/4 del precio, el peso del neutral (1 − k) impide certezas."""
+    r = escenarios.ejecutar(ANALISTA, {"base": dict(BASE, precio0=400.0)}, cfg=cfg(30_000))
+    assert r["probabilidades_modelo"]["E3"] > r["probabilidades"]["E3"] > r["probabilidades_neutral"]["E3"]
+    assert r["probabilidades"]["E3"] < 0.6 and r["probabilidades"]["E1"] > 0.2
 
 
 def test_ajustes():

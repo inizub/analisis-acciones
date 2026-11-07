@@ -3,13 +3,15 @@ version: 4
 modelos: {datos: sonnet, analista: sonnet, forense: sonnet, red_team_fallback: sonnet, juez: opus}
 red_team_externo: {proveedor: gemini, modelo: "<configurar>", activo: false}
 eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: VWCE.DE, moneda: EUR}
+# k: peso de los escenarios del analista frente al escenario neutral (precio = valor) en la simulación de
+# escenarios.py. tasa_base_exceso: baseline B0 de la puntuación y respaldo para salidas antiguas.
 agregacion: {tasa_base_exceso: 0.45, k: 0.4, clip_E3_E4: [0.05, 0.95]}
 veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_bear: 0.50, no_atractiva_p_E1: 0.40, z_no_atractiva: 3}
 escenarios: {T_conv_anios: 3, mc_sims: 100000, t_nu: 4, semilla: 42}
 # Cordura del modelo: si el precio queda a más de este factor del rango de valores de los escenarios (todos muy por debajo
-# o muy por encima), el modelo no es fiable (base de datos desfasada o supuestos que no encajan) y el checklist lo cierra
-# como no_analizable en vez de emitir probabilidades extremas.
-cordura: {factor_precio_fuera_de_rango: 2.0}
+# o muy por encima), el resultado depende mucho de los supuestos. Con bloquea: false es un aviso visible en el resumen;
+# con bloquea: true el checklist (punto 12) lo cierra como no_analizable y el flujo salta red team y juez.
+cordura: {factor_precio_fuera_de_rango: 2.0, bloquea: false}
 # Construcción de la base de valoración (motor/inicial.py). Parámetros de modelo, no datos de la empresa.
 motor:
   g_terminal_max: 0.03            # g terminal = min(Rf, este valor)

@@ -257,12 +257,18 @@ def punto_11(dp: dict, cfg: dict) -> dict:
     return _ok(f"{dias} días") if dias <= maximo else _fallo(f"precio de hace {dias} días (máximo {maximo})")
 
 
-def punto_12(escenarios: dict[str, dict | None], esperados: list[str]) -> dict:
-    """El precio no puede quedar muy fuera del rango de valores de los escenarios (ver escenarios.cordura)."""
+def punto_12(escenarios: dict[str, dict | None], esperados: list[str], cfg: dict) -> dict:
+    """El precio no debería quedar muy fuera del rango de valores de los escenarios (ver escenarios.cordura).
+    Con cordura.bloquea es un fallo; si no, un aviso que el resumen muestra."""
     mal = [f"analista {n}: {e['cordura']['motivo']}" for n in esperados
            if (e := escenarios.get(n)) and (e.get("cordura") or {}).get("fiable") is False]
-    if mal:
+    if mal and cfg.get("cordura", {}).get("bloquea", False):
         return _fallo("modelo no fiable: " + " | ".join(mal))
+    if mal:
+        r = _ok("el precio queda lejos de todos los escenarios (aviso)")
+        r["aviso"] = ("Precio muy lejos del valor de todos los escenarios: las probabilidades dependen mucho de los "
+                      "supuestos del modelo; tómalas con cautela (" + " | ".join(mal) + ")")
+        return r
     if not any((escenarios.get(n) or {}).get("cordura") for n in esperados):
         return _no_evaluado("los escenarios no incluyen la comprobación de cordura")
     return _ok("el precio encaja con el rango de valores de los escenarios")
@@ -296,7 +302,7 @@ def evaluar(dp: dict, router: dict, modo: str, fase: str = "final", motor: dict 
             items[8] = punto_8(sintesis, modo)
             items[9] = punto_9(forense)
             items[10] = punto_10(dp, router["ruta"], motor, escenarios, cfg)
-            items[12] = punto_12(escenarios, esperados)
+            items[12] = punto_12(escenarios, esperados, cfg)
             if items[12]["estado"] == "fallo" and sintesis is None:
                 # Cierre anticipado por modelo no fiable: sin juez no hay síntesis, y eso no es otro fallo.
                 for n in (7, 8):

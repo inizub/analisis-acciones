@@ -115,7 +115,7 @@ def test_flujo_rapido_de_codigo_a_diario(tmp_path):
     a["encuadre"] = "N"
     (d / "analista_N.json").write_text(json.dumps(a), encoding="utf-8")
     hechos = ejecucion.ejecutar_escenarios(d, "rapido")
-    assert set(hechos) == {"N"}
+    assert set(hechos) == {"N", "cierre_anticipado"} and hechos["cierre_anticipado"] is False
     esc = comun.leer_json(d / "escenarios_N.json")
     assert "percentiles_codigo" in esc and "crecimiento_ingresos" in esc["percentiles_codigo"]["base"]
     (d / "sintesis.json").write_text(json.dumps(sintesis()), encoding="utf-8")

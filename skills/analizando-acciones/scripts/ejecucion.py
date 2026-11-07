@@ -368,6 +368,9 @@ def ejecutar_escenarios(d: Path, modo: str) -> dict:
             hechos[n] = {"p_E1": sin["probabilidades"]["E1"], "modelo_fiable": sin["cordura"]["fiable"]}
     if not hechos:
         raise FileNotFoundError("No hay salidas de analistas (analista_*.json)")
+    bloquea = comun.cargar_config().get("cordura", {}).get("bloquea", False)
+    principales = [hechos[n] for n in comun.analistas_de_modo(modo) if n in hechos]
+    hechos["cierre_anticipado"] = bool(bloquea and principales and not any(h["modelo_fiable"] for h in principales))
     return hechos
 
 
