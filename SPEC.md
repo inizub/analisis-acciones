@@ -56,9 +56,11 @@ Cada evento lleva una cláusula de anulación definida antes de emitir: OPA o fu
 | Veredicto | Regla |
 |---|---|
 | `no_analizable` | Ruta fuera de alcance, **o** campo crítico `desconocido`, **o** discrepancia de fuentes sin resolver en campo crítico, **o** bandera forense invalidante, **o** checklist fallido |
-| `atractiva` | p_final(E1) ≥ 0,55 **y** exceso de rentabilidad anual esperado frente a VWCE ≥ +5 pp **y** pérdida en escenario bajista ≤ 50 % **y** ninguna bandera forense grave |
-| `no_atractiva` | p_final(E1) ≤ 0,40, **o** el DCF inverso no encuentra solución en rangos razonables, **o** el precio implica un driver con z > 3 frente a su tasa base |
+| `atractiva` | p_final(E1) ≥ p de partida + 0,06 **y** exceso de rentabilidad anual esperado frente a VWCE ≥ +5 pp **y** pérdida en escenario bajista ≤ 50 % **y** ninguna bandera forense grave |
+| `no_atractiva` | p_final(E1) ≤ p de partida − 0,05, **o** el DCF inverso no encuentra solución en rangos razonables, **o** el precio implica un driver con z > 3 frente a su tasa base |
 | `neutral` | Todo lo demás |
+
+**p de partida.** Es la p(E1) del escenario neutral de `escenarios.py` (precio = valor) y depende de la volatilidad de la acción: ≈ 0,45 con volatilidad relativa del 20 % y ≈ 0,41 con el 40 %. Con la p de partida de 0,45 las reglas coinciden con los umbrales absolutos originales (0,55 y 0,40); sin p de partida (salidas antiguas) se usan esos umbrales absolutos. *Cambio de noviembre de 2026: con umbrales fijos, "atractiva" era inalcanzable para acciones volátiles y una acción volátil a precio justo ya quedaba como "no atractiva".* Véase `docs/decisiones/0008-veredicto-relativo-a-la-partida.md`.
 
 ## A2. Plataforma y empaquetado
 

@@ -56,6 +56,20 @@ def _ultimo(dp: dict, campo: str) -> float | None:
     return s[-1]["valor"] if s else None
 
 
+def saldo_reciente(dp: dict, campo: str) -> tuple[float | None, str | None]:
+    """Último saldo de balance (caja, deuda): el trimestral si es posterior al del último ejercicio; si no, el anual.
+
+    Devuelve (valor, fecha_dato). Los saldos trimestrales los trae el agente de datos en `trimestrales.<campo>`."""
+    anual = _serie(dp, campo)
+    t = (dp.get("trimestrales") or {}).get(campo) or {}
+    trim = [] if comun.es_desconocido(t) else (t.get("serie") or [])
+    if trim:
+        q = max(trim, key=lambda x: x["fecha_dato"])
+        if not anual or q["fecha_dato"] > anual[-1]["fecha_dato"]:
+            return q["valor"], q["fecha_dato"]
+    return (anual[-1]["valor"], anual[-1]["fecha_dato"]) if anual else (None, None)
+
+
 def _requerido(dp: dict, campo: str) -> float:
     v = _ultimo(dp, campo)
     exigir(v is not None, f"falta {campo} en el datapack")
@@ -341,7 +355,14 @@ def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos)
     b12 = base_doce_meses(dp, avisos, cfg["datos"]["base_max_meses"])
     if b12["metodo"] in ("ttm", "ttm_ingresos"):
         ing, ebit = b12["ingresos"], b12["beneficio_operativo"]
-    deuda, caja = _requerido(dp, "deuda_total"), _requerido(dp, "caja")
+    (deuda, f_deuda), (caja, f_caja) = saldo_reciente(dp, "deuda_total"), saldo_reciente(dp, "caja")
+    exigir(deuda is not None, "falta deuda_total en el datapack")
+    exigir(caja is not None, "falta caja en el datapack")
+    if dp.get("fecha_analisis") and f_caja and f_deuda:
+        antig = (_f(dp["fecha_analisis"]) - _f(min(f_caja, f_deuda))).days / 30.4
+        if antig > cfg["datos"]["base_max_meses"]:
+            avisos.append(f"Caja y deuda del balance a {min(f_caja, f_deuda)}, de hace {antig:.0f} meses: si la empresa "
+                          "quema o genera mucha caja, la deuda neta actual puede ser distinta")
     beta_u = _sector(dp, "betas.beta_desapalancada_caja") or _sector(dp, "betas.beta_desapalancada")
     exigir(beta_u is not None, "sin beta desapalancada sectorial")
     kd = coste_deuda(dp, rf, crp, avisos)
@@ -360,7 +381,7 @@ def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos)
         crec = ((dp.get("tasas_base") or {}).get("para_reverse_dcf") or {}).get("crecimiento_ingresos", {}).get("media")
     exigir(crec is not None, "sin crecimiento de referencia para el caso mecánico")
     base = {**comunes, "ingresos0": ing, "tasa_impuestos": t, "wacc": w["wacc"], "rf": rf, "g_terminal": g_term,
-            "base_ingresos": b12, "deuda": deuda, "caja": caja, "ventas_capital": ventas_capital(dp, cfg, avisos),
+            "base_ingresos": b12, "balance_fecha": {"deuda": f_deuda, "caja": f_caja}, "deuda": deuda, "caja": caja, "ventas_capital": ventas_capital(dp, cfg, avisos),
             # El DCF inverso mantiene el margen actual: describe lo que descuenta el precio sin añadir la reversión
             # a la media del caso mecánico. El caso mecánico usa el margen encogido (mec más abajo).
             "margen_operativo": margen0, "margen_inicial": margen0,
@@ -415,7 +436,7 @@ def _base_biotech(dp, comunes, cfg, rf, erp, crp, avisos):
                         "anios_declive": mc["anios_declive"]})
     exigir(activos, "biotech sin activos de pipeline con fase y ventas pico con fuente")
     beta_u = _sector(dp, "betas.beta_desapalancada") or 1.0
-    caja, deuda = _ultimo(dp, "caja") or 0.0, _ultimo(dp, "deuda_total") or 0.0
+    caja, deuda = saldo_reciente(dp, "caja")[0] or 0.0, saldo_reciente(dp, "deuda_total")[0] or 0.0
     quema = max(0.0, -(_ultimo(dp, "fco") or 0.0))
     avisos.append("rNPV: margen, plazos de lanzamiento y curva de ventas son parámetros de config.yaml (motor.rnpv)")
     rnpv = {"activos": activos, "tabla": cargar_tabla_bio(grupo="area"), "tasa": rf + beta_u * erp + crp,

@@ -65,6 +65,22 @@ def test_cuentas_a_cobrar_dos_anios_seguidos():
     assert "cxc_vs_ingresos" not in graves(r)
 
 
+def test_ultimo_ano_sobre_el_umbral_sin_ser_grave_da_una_bandera_informativa():
+    """NVDA: el inventario creció +47 pp sobre los ingresos el último año, pero el anterior no: no es grave, no pasa inadvertido."""
+    ing = [100.0, 105.0, 110.0, 116.0, 122.0, 128.0, 134.0]
+    inv = [10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 15.0]                      # +50 % el último año, plano antes
+    r = forense.calcular(sano(ingresos=ing, inventario=inv), "general", CFG)
+    assert "inventario_vs_ingresos" not in {b["metrica"] for b in r["banderas"] if b["nivel"] == "grave"}
+    informativas = [b for b in r["banderas"] if b["nivel"] == "informativa"]
+    assert [b["metrica"] for b in informativas] == ["inventario_vs_ingresos"]
+    assert "el último año supera el umbral" in informativas[0]["bandera"] and informativas[0]["valor"] > 40
+    assert r["resumen"]["graves"] == len([b for b in r["banderas"] if b["nivel"] == "grave"])
+    # si el último año no supera el umbral, no hay bandera
+    sano_inv = [10.0, 10.5, 11.0, 11.6, 12.2, 12.8, 13.4]
+    r2 = forense.calcular(sano(ingresos=ing, inventario=sano_inv), "general", CFG)
+    assert "inventario_vs_ingresos" not in {b["metrica"] for b in r2["banderas"]}
+
+
 def test_inventario_y_empresa_sin_inventario():
     ing = [1000.0, 1050.0, 1100.0, 1150.0, 1200.0, 1250.0]
     r = forense.calcular(sano(ingresos=ing, inventario=[50.0, 55.0, 70.0, 90.0, 120.0, 160.0]), "general", CFG)
@@ -151,9 +167,11 @@ def datapack_desde_fixture(fixture, nombre, sic):
     return {"ticker": nombre.upper(), "fundamentales": fund}
 
 
-def test_aapl_real_sin_banderas(fixture):
+def test_aapl_real_sin_banderas_graves(fixture):
     r = forense.calcular(datapack_desde_fixture(fixture, "aapl", 3571), "general", CFG)
-    assert r["banderas"] == []
+    assert [b for b in r["banderas"] if b["nivel"] == "grave"] == []
+    # el inventario de Apple (partida pequeña) subió mucho el último año, pero no dos seguidos: solo informativa
+    assert [(b["metrica"], b["nivel"]) for b in r["banderas"]] == [("inventario_vs_ingresos", "informativa")]
     assert r["metricas"]["fco_beneficio_neto"]["estado"] == "evaluada"
     assert r["metricas"]["sbc_ingresos"]["valor"] == pytest.approx(0.029, abs=0.005)
     assert r["metricas"]["dilucion"]["valor"] < 0  # recompras

@@ -118,6 +118,41 @@ def test_sin_dcf_inverso_no_dispara_no_atractiva():
     assert r["veredicto"] == "atractiva" and r["condiciones"]["detalle"]["dcf_inverso_disponible"] is False
 
 
+# ---------------------------------------------------------------- veredicto relativo a la p de partida
+
+def con_partida(partida, e1, exceso=8.0, **kw):
+    """Dos analistas con la p(E1) del escenario neutral (partida) y la p(E1) de la mezcla `e1`."""
+    a = {}
+    for n in ("A", "B"):
+        s = esc(n, e1=e1, exceso=exceso, **kw)
+        s["probabilidades_neutral"] = {"E0": partida, "E1": partida, "E2": partida, "E3": 0.1}
+        a[n] = s
+    return agregar.agregar(a, "completo", reverse_dcf=motor()["reverse_dcf"])
+
+
+def test_el_veredicto_mide_la_ventaja_sobre_la_probabilidad_de_partida():
+    # volatilidad baja (partida 0,45): atractiva desde 0,51 (= 0,45 + 0,06)
+    assert con_partida(0.45, 0.51)["veredicto"] == "atractiva"
+    assert con_partida(0.45, 0.50)["veredicto"] == "neutral"
+    # volatilidad alta (partida 0,41): el 0,55 absoluto era inalcanzable; ahora basta 0,47
+    assert con_partida(0.41, 0.47)["veredicto"] == "atractiva"
+    assert con_partida(0.41, 0.46)["veredicto"] == "neutral"
+
+
+def test_no_atractiva_tambien_es_relativa_y_una_accion_a_precio_justo_no_cae_ahi():
+    # partida 0,41 (vol alta): precio justo (p = 0,41) debe ser neutral, no "no atractiva" por el 0,40 absoluto
+    r = con_partida(0.41, 0.41)
+    assert r["veredicto"] == "neutral"
+    assert con_partida(0.41, 0.36)["veredicto"] == "no_atractiva"          # 0,41 − 0,05
+    assert con_partida(0.41, 0.365)["veredicto"] == "neutral"
+    assert "partida 0,41" in next(iter(r["condiciones"]["no_atractiva"]))
+
+
+def test_el_exceso_y_la_perdida_siguen_siendo_obligatorios_para_atractiva():
+    assert con_partida(0.45, 0.60, exceso=4.0)["veredicto"] == "neutral"
+    assert con_partida(0.45, 0.60, perdida=0.60)["veredicto"] == "neutral"
+
+
 # ---------------------------------------------------------------- E4 con umbral común
 
 def test_e4_umbral_comun_recalcula_la_p_de_cada_analista():

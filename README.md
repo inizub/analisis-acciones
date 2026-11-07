@@ -106,9 +106,13 @@ EVAL_SEC_USER_AGENT="Nombre correo@ejemplo.com" EVAL_FRED_API_KEY=... \
 claude plugin eval . --allow-tools Bash Write Edit WebFetch WebSearch --runs 1
 ```
 
+## Decisiones de diseño
+
+El porqué de los cambios hechos tras las primeras pruebas reales (qué falló, qué se decidió y qué alternativas se descartaron) está en [`docs/decisiones/`](docs/decisiones/README.md), junto con el registro de pruebas y las [limitaciones conocidas](docs/decisiones/limitaciones-conocidas.md).
+
 ## Estado
 
-Versión 0.2.2. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
+Versión 0.3.0. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
 
 Limitaciones conocidas:
 

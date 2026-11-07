@@ -6,7 +6,11 @@ eventos: {E0_meses: 6, E1_meses: 12, E2_meses: 36, E3_caida: -0.30, benchmark: V
 # k: peso de los escenarios del analista frente al escenario neutral (precio = valor) en la simulación de
 # escenarios.py. tasa_base_exceso: baseline B0 de la puntuación y respaldo para salidas antiguas.
 agregacion: {tasa_base_exceso: 0.45, k: 0.4, clip_E3_E4: [0.05, 0.95]}
-veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_bear: 0.50, no_atractiva_p_E1: 0.40, z_no_atractiva: 3}
+# Veredicto. Con la p de partida de la acción calculada (escenario neutral de escenarios.py; depende de su volatilidad),
+# atractiva exige p(E1) ≥ partida + ventaja_atractiva y no_atractiva p(E1) ≤ partida − ventaja_no_atractiva. Sin p de
+# partida (salidas antiguas) se usan los umbrales absolutos atractiva_p_E1 y no_atractiva_p_E1 (partida 0,45 ± 0,10 / 0,05).
+veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_bear: 0.50, no_atractiva_p_E1: 0.40,
+            ventaja_atractiva: 0.06, ventaja_no_atractiva: 0.05, z_no_atractiva: 3}
 # tope_desviacion: el modelo puede afirmar como mucho ~este factor de diferencia entre valor y precio. Más allá, la
 # diferencia se satura de forma suave (ln(V/P0) → L·tanh(ln(V/P0)/L), L = ln(tope)): un DCF que contradice al mercado
 # por 4× es más probable que esté equivocado que el mercado. Es monótono: más caro nunca da mejores probabilidades.

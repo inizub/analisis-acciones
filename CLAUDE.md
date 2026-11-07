@@ -9,6 +9,9 @@ Plugin de Claude Code `analisis-acciones`: recibe un ticker y devuelve un análi
 3. La **Parte B** es solo contexto. No la copies nunca a prompts de agentes, `SKILL.md` ni `references/`: estos contienen únicamente instrucciones operativas (qué hacer, con qué entradas, qué formato de salida).
 4. Si una decisión de la Parte A es inviable o contradice la Parte B, pregunta antes de cambiarla.
 
+## Decisiones de diseño
+El porqué de los cambios posteriores al spec está en `docs/decisiones/`. Léelo antes de revertir o rehacer algo que ya se cambió; añade una nota cuando tomes una decisión nueva.
+
 ## Cambios respecto a SPEC.md
 - No se usará Gemini ni ningún modelo externo. En `assets/config.yaml`, `red_team_externo.activo: false`. El red team lo hace siempre el subagente `red-team` (Claude).
 - No construyas `red_team_externo.py` hasta que se pida expresamente.

@@ -14,9 +14,11 @@ Por evento:
   Con un solo analista (modo rápido o degradado) p_agg = p del analista.
   E4: la métrica la fija la ruta; si A y B proponen umbrales distintos, se usa la media y la p(E4) de cada analista se
   recalcula contra ese umbral común con sus propios escenarios.
-Veredicto (de los números; el checklist de gate.py puede convertirlo en no_analizable):
-  no_atractiva  p_final(E1) ≤ 0,40, o DCF inverso sin raíz, o el precio implica un driver con z > 3
-  atractiva     p_final(E1) ≥ 0,55, exceso anual esperado ≥ +5 pp, pérdida bajista ≤ 50 % y sin banderas graves
+Veredicto (de los números; el checklist de gate.py puede convertirlo en no_analizable). La p de partida es la p(E1) del
+escenario neutral (precio = valor), que depende de la volatilidad (≈ 0,45 con 20 %, ≈ 0,41 con 40 %):
+  no_atractiva  p_final(E1) ≤ partida − 0,05, o DCF inverso sin raíz, o el precio implica un driver con z > 3
+  atractiva     p_final(E1) ≥ partida + 0,06, exceso anual esperado ≥ +5 pp, pérdida bajista ≤ 50 % y sin banderas graves
+  Sin p de partida (salidas antiguas) se usan 0,40 y 0,55 absolutos.
   neutral       todo lo demás
 Si se cumple a la vez alguna condición de no_atractiva y todas las de atractiva, gana no_atractiva (criterio
 conservador: la spec no fija la precedencia).
@@ -69,10 +71,17 @@ def metrica_e4_comun(escenarios: dict[str, dict]) -> dict:
 
 
 def condiciones_veredicto(p_e1: float, exceso_pp: float, perdida_bajista: float, banderas: list[dict],
-                          reverse_dcf: dict | None, cfg: dict) -> dict:
+                          reverse_dcf: dict | None, cfg: dict, p_partida: float | None = None) -> dict:
     """Evalúa por separado cada condición de A1. Devuelve {'no_atractiva': {...}, 'atractiva': {...}}."""
     v = cfg["veredicto"]
     pc = lambda x: f"{x:.2f}".replace(".", ",")  # noqa: E731
+    if p_partida is None:
+        umbral_si, umbral_no = v["atractiva_p_E1"], v["no_atractiva_p_E1"]
+        etiqueta_si, etiqueta_no = f"p_final(E1) ≥ {pc(umbral_si)}", f"p_final(E1) ≤ {pc(umbral_no)}"
+    else:
+        umbral_si, umbral_no = p_partida + v["ventaja_atractiva"], p_partida - v["ventaja_no_atractiva"]
+        etiqueta_si = f"p_final(E1) ≥ {pc(umbral_si)} (partida {pc(p_partida)} + {pc(v['ventaja_atractiva'])})"
+        etiqueta_no = f"p_final(E1) ≤ {pc(umbral_no)} (partida {pc(p_partida)} − {pc(v['ventaja_no_atractiva'])})"
     resultados = (reverse_dcf or {}).get("resultados") or []
     z_altos = [f"{r['driver']} (z={r['z']:.1f})" for r in resultados
                if r.get("z") is not None and r["z"] > v["z_no_atractiva"]]
@@ -80,12 +89,12 @@ def condiciones_veredicto(p_e1: float, exceso_pp: float, perdida_bajista: float,
     graves = [b["bandera"] for b in banderas if b.get("nivel") in comun.NIVELES_GRAVES]
     return {
         "no_atractiva": {
-            f"p_final(E1) ≤ {pc(v['no_atractiva_p_E1'])}": p_e1 <= v["no_atractiva_p_E1"] + EPS,
+            etiqueta_no: p_e1 <= umbral_no + EPS,
             "DCF inverso sin raíz": sin_raiz is True,
             f"el precio implica un driver con z > {v['z_no_atractiva']}": bool(z_altos),
         },
         "atractiva": {
-            f"p_final(E1) ≥ {pc(v['atractiva_p_E1'])}": p_e1 >= v["atractiva_p_E1"] - EPS,
+            etiqueta_si: p_e1 >= umbral_si - EPS,
             f"exceso anual esperado ≥ {v['atractiva_exceso_pp']} pp": exceso_pp >= v["atractiva_exceso_pp"] - EPS,
             f"pérdida en el escenario bajista ≤ {v['atractiva_max_perdida_bear']:.0%}":
                 perdida_bajista <= v["atractiva_max_perdida_bear"] + EPS,
@@ -143,7 +152,8 @@ def agregar(escenarios: dict[str, dict], modo: str, cfg: dict | None = None, ban
     calculada = all(x is not None for x in neutrales)
     tasa_base = media(neutrales) if calculada else ag["tasa_base_exceso"]
     banderas = banderas or []
-    cond = condiciones_veredicto(p_final["E1"], exceso, perdida, banderas, reverse_dcf, cfg)
+    cond = condiciones_veredicto(p_final["E1"], exceso, perdida, banderas, reverse_dcf, cfg,
+                                 tasa_base if calculada else None)
     ver, motivo = veredicto(cond)
     return {
         "ticker": base["ticker"], "fecha_analisis": base["fecha_analisis"], "modo": modo, "analistas": nombres,

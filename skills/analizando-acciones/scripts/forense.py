@@ -110,7 +110,7 @@ def _gap(dp: dict, campo: str, umbral_pp: float, anios: int, nombre: str) -> dic
     grave = all(g > umbral_pp for g in gaps)
     return _ok(min(gaps), umbral_pp, grave,
                f"{nombre}: diferencial de crecimiento (pp) en los últimos {anios} años = "
-               + ", ".join(f"{g:.1f}" for g in gaps), campos, valores=gaps)
+               + ", ".join(f"{g:.1f}" for g in gaps), campos, valores=gaps, ultimo_sobre_umbral=gaps[-1] > umbral_pp)
 
 
 def cxc_vs_ingresos(dp: dict, cfg: dict) -> dict:
@@ -240,9 +240,15 @@ def calcular(dp: dict, ruta: str = "general", cfg: dict | None = None) -> dict:
             metricas[nombre] = f(dp, cfg)
     banderas = [{"bandera": m["detalle"], "nivel": "grave", "metrica": n, "valor": m["valor"], "umbral": m["umbral"]}
                 for n, m in metricas.items() if m["estado"] == "evaluada" and m["grave"]]
+    # El último año ya cruza el umbral pero no dos seguidos (no es grave): informativa, para que no pase inadvertido.
+    banderas += [{"bandera": m["detalle"] + " (el último año supera el umbral, aún no dos seguidos)", "nivel": "informativa",
+                  "metrica": n, "valor": m["valores"][-1], "umbral": m["umbral"]}
+                 for n, m in metricas.items()
+                 if m["estado"] == "evaluada" and not m["grave"] and m.get("ultimo_sobre_umbral")]
     return {
         "ticker": dp.get("ticker"), "ruta": ruta, "metricas": metricas, "banderas": banderas,
-        "resumen": {"graves": len(banderas),
+        "resumen": {"graves": len([b for b in banderas if b["nivel"] == "grave"]),
+                    "informativas": len([b for b in banderas if b["nivel"] == "informativa"]),
                     "sin_datos": [n for n, m in metricas.items() if m["estado"] == "sin_datos"],
                     "no_aplica": [n for n, m in metricas.items() if m["estado"] == "no_aplica"]},
     }

@@ -28,6 +28,9 @@ del emisor, comunicados de resultados y, por último, prensa financiera.
    hay trimestres posteriores al último ejercicio anual del datapack, incluye **todos** los trimestres posteriores
    (sin saltar ninguno, con `periodo_inicio` y `fecha_dato`) **y los mismos trimestres del año anterior**: con ellos
    el código calcula los últimos doce meses. Sin los comparables, la valoración usa el último ejercicio.
+   Incluye también los saldos del último balance trimestral publicado: `trimestrales.caja` y `trimestrales.deuda_total`
+   (una cifra con su `fecha_dato`, con el mismo concepto que la serie anual; sin comparables). Con ellos el motor usa la
+   deuda neta actual y no la del último ejercicio.
 3. Guidance vigente de la empresa.
 4. Ingresos por segmento de negocio y por geografía o moneda.
 5. Cambios de auditor, opinión de auditoría, cambios de políticas contables y factores de riesgo nuevos.

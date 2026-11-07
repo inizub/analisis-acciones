@@ -11,7 +11,7 @@
       "name": "analisis-acciones",
       "source": "./",
       "description": "Análisis de una acción con veredicto, probabilidades frente a VWCE y diario de predicciones.",
-      "version": "0.2.2"
+      "version": "0.3.0"
     }
   ]
 }

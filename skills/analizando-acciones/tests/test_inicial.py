@@ -307,6 +307,36 @@ def test_sin_beneficio_operativo_trimestral_se_usan_los_ingresos_de_12_meses_con
     assert not any("de hace" in a and "sin trimestres posteriores" in a for a in m["supuestos"]["avisos"])
 
 
+def _balance_trimestral(dp, campo, valor, fecha):
+    dp.setdefault("trimestrales", {})[campo] = {"concepto": campo, "serie": [cifra(valor, "unidades", "USD", f=fecha)]}
+
+
+def test_caja_y_deuda_del_ultimo_balance_trimestral():
+    dp, _, _ = _dp_con_trimestres()
+    anual = inicial.saldo_reciente(dp, "caja")
+    assert anual[1] == "2025-12-31" or anual[1] <= "2026-01-01"              # sin saldos trimestrales: el del ejercicio
+    _balance_trimestral(dp, "caja", 1.0 * MM, "2026-09-30")
+    _balance_trimestral(dp, "deuda_total", 9.0 * MM, "2026-09-30")
+    assert inicial.saldo_reciente(dp, "caja") == (1.0 * MM, "2026-09-30")
+    dp["tasas_base"] = tasas_base.construir(dp)
+    b = construir(dp)["base"]
+    assert b["caja"] == 1.0 * MM and b["deuda"] == 9.0 * MM
+    assert b["balance_fecha"] == {"deuda": "2026-09-30", "caja": "2026-09-30"}
+    # un saldo trimestral anterior al del ejercicio no sustituye al del ejercicio
+    dp2, _, _ = _dp_con_trimestres()
+    _balance_trimestral(dp2, "caja", 99.0 * MM, "2020-01-01")
+    assert inicial.saldo_reciente(dp2, "caja")[0] != 99.0 * MM
+
+
+def test_balance_antiguo_se_avisa_y_el_reciente_no():
+    dp, _, _ = _dp_con_trimestres()
+    dp["fecha_analisis"] = "2026-11-06"
+    assert any("Caja y deuda del balance a" in a and "de hace" in a for a in construir(dp)["supuestos"]["avisos"])
+    for c in ("caja", "deuda_total"):
+        _balance_trimestral(dp, c, 3.0 * MM, "2026-09-30")
+    assert not any("Caja y deuda del balance a" in a for a in construir(dp)["supuestos"]["avisos"])
+
+
 def test_beneficio_operativo_aproximado_se_avisa():
     dp = dp_con_tasas()
     assert not any("aproximado" in a for a in construir(dp)["supuestos"]["avisos"])

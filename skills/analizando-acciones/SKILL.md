@@ -4,7 +4,7 @@ description: Analyzes a single stock from its ticker and returns a verdict (atra
 license: Uso personal. No es asesoramiento financiero.
 compatibility: Claude Code con subagentes y uv (Python 3.12). Acceso a internet para SEC EDGAR, Yahoo Finance, FRED, BCE y Damodaran. En el chat de claude.ai funciona en modo degradado (references/claude-ai.md).
 metadata:
-  version: 0.2.2
+  version: 0.3.0
   idioma: es
 allowed-tools: Bash Read Write Glob Grep Agent
 ---
@@ -66,7 +66,8 @@ Lanza el agente `analisis-acciones:datos` con este encargo (sustituye los valore
 
 > Directorio de la ejecución: RUN. Ticker: TICKER. Modo: MODO. Campos que faltan: <lista campos_criticos_faltan y
 > campos_desconocidos del paso 2>. Trimestrales pendientes: <trimestrales_pendientes del paso 2; si es `true`, trae todos
-> los trimestres posteriores al último ejercicio y los mismos del año anterior>. Lee RUN/datapack_base.json, completa los huecos con fuentes primarias y escribe
+> los trimestres posteriores al último ejercicio, los mismos del año anterior y los saldos de caja y deuda total del
+> último balance trimestral>. Lee RUN/datapack_base.json, completa los huecos con fuentes primarias y escribe
 > RUN/datos_agente.json.
 
 Después:
