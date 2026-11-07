@@ -129,13 +129,19 @@ def test_ciclica_clara_gana_a_un_crecimiento_apenas_sobre_el_p90():
     assert r["confianza"] == "media" and r["requiere_confirmacion"] is False       # la alternativa es más débil
 
 
-def test_dos_candidatas_de_igual_fuerza_siguen_la_prioridad_y_piden_confirmacion():
+def test_dos_candidatas_de_igual_fuerza_piden_confirmacion_y_a_fuerza_media_gana_la_ciclica():
     tabla = ({"metrica": "crecimiento_ventas_5a", "clase_musd": "todas", "sector": "todos", "media": 0.06, "desv": 0.12,
               "n": 1000, "p90": 0.10, "p10": None, "p25": None, "p50": None, "p75": None, "fuente": "x", "periodo": "x"},)
     ing = crecer(10 * MM, 0.12, 10)
     estable = [i * 0.10 for i in ing]
     r = router.clasificar(datapack(sic=3674, ingresos=ing, beneficio_operativo=estable), tabla=tabla)   # ambas medias
-    assert r["ruta"] == "crecimiento_perdidas" and r["confianza"] == "baja" and r["requiere_confirmacion"]
+    # Valero: refinería (SIC cíclico) con margen estable y ventas que siguen al crudo: la ciclica gana el empate
+    assert r["ruta"] == "ciclica" and r["alternativas"] == ["crecimiento_perdidas"]
+    assert r["confianza"] == "baja" and r["requiere_confirmacion"]
+    # a fuerza alta en ambas (EBIT negativo + cíclica clara) sigue mandando el SPEC: crecimiento_perdidas
+    volatil = [i * m for i, m in zip(ing, [0.02, 0.18, 0.04, 0.20, -0.02, 0.16, 0.05, -0.19, -0.03, -0.17])]
+    r2 = router.clasificar(datapack(sic=3674, ingresos=ing, beneficio_operativo=volatil), tabla=tabla)
+    assert r2["ruta"] == "crecimiento_perdidas"
 
 
 def test_las_rutas_duras_mantienen_la_prioridad_estricta():

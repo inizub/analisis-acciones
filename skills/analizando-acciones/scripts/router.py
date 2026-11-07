@@ -11,6 +11,8 @@ Prioridad de reglas (la primera que se cumple decide):
 Salvedad (noviembre de 2026): entre crecimiento_perdidas, ciclica y general, una candidata de fuerza alta gana a una de
 fuerza media, y la prioridad solo desempata a igual fuerza. Ejemplo: NVDA o Freeport crecen algo por encima del p90 de su
 clase (crecimiento_perdidas, media) pero son cíclicas claras (alta): antes se les asignaba crecimiento_perdidas.
+Desempate a fuerza media: ciclica antes que crecimiento_perdidas (un crecimiento puntual sobre el p90 es peor evidencia que
+un sector cíclico; p. ej. el crecimiento de ventas de una refinería sigue al crudo). A fuerza alta se mantiene el SPEC.
 
 Confianza:
   alta   regla clara y sin alternativas (o ruta general sin ninguna otra regla disparada y con datos completos)
@@ -199,8 +201,14 @@ def clasificar(dp: dict, cfg: dict | None = None, tabla=None) -> dict:
 
     # decisión
     orden = {ruta: i for i, ruta in enumerate(PRIORIDAD)}
+    def _desempate(c: dict) -> int:
+        """Prioridad entre rutas blandas de igual fuerza: la del SPEC, salvo a fuerza media (ciclica primero)."""
+        if c["fuerza"] == "media" and c["ruta"] in ("ciclica", "crecimiento_perdidas"):
+            return {"ciclica": 0, "crecimiento_perdidas": 1}[c["ruta"]]
+        return orden[c["ruta"]]
+
     candidatas.sort(key=lambda c: (0, orden[c["ruta"]], 0, 0) if c["ruta"] in RUTAS_DURAS
-                    else (1, 0, c["fuerza"] != "alta", orden[c["ruta"]]))
+                    else (1, 0, c["fuerza"] != "alta", _desempate(c)))
     if candidatas:
         elegida = candidatas[0]
         ruta, fuerza, motivo = elegida["ruta"], elegida["fuerza"], elegida["motivo"]

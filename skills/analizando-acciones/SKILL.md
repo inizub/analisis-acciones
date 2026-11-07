@@ -4,7 +4,7 @@ description: Analyzes a single stock from its ticker and returns a verdict (atra
 license: Uso personal. No es asesoramiento financiero.
 compatibility: Claude Code con subagentes y uv (Python 3.12). Acceso a internet para SEC EDGAR, Yahoo Finance, FRED, BCE y Damodaran. En el chat de claude.ai funciona en modo degradado (references/claude-ai.md).
 metadata:
-  version: 0.2.1
+  version: 0.2.2
   idioma: es
 allowed-tools: Bash Read Write Glob Grep Agent
 ---
