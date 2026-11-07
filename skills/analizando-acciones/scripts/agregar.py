@@ -85,12 +85,14 @@ def condiciones_veredicto(p_e1: float, exceso_pp: float, perdida_bajista: float,
     resultados = (reverse_dcf or {}).get("resultados") or []
     z_altos = [f"{r['driver']} (z={r['z']:.1f})" for r in resultados
                if r.get("z") is not None and r["z"] > v["z_no_atractiva"]]
-    sin_raiz = (reverse_dcf or {}).get("sin_raiz")
+    # Sin raíz solo penaliza si el precio es demasiado alto (ni con el mejor driver se justifica); si es demasiado bajo
+    # (ni con el peor driver el modelo baja del precio) la acción está barata y no es motivo de "no atractiva".
+    sin_raiz = bool((reverse_dcf or {}).get("sin_raiz")) and (reverse_dcf or {}).get("sentido") != "barato"
     graves = [b["bandera"] for b in banderas if b.get("nivel") in comun.NIVELES_GRAVES]
     return {
         "no_atractiva": {
             etiqueta_no: p_e1 <= umbral_no + EPS,
-            "DCF inverso sin raíz": sin_raiz is True,
+            "DCF inverso sin raíz (precio demasiado alto)": sin_raiz,
             f"el precio implica un driver con z > {v['z_no_atractiva']}": bool(z_altos),
         },
         "atractiva": {

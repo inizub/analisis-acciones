@@ -283,7 +283,8 @@ def codigo(d: Path, modo: str, motor_fx: Any = None) -> dict:
     res: dict[str, Any] = {"ruta": rt["ruta"], "confianza": rt["confianza"], "requiere_confirmacion": rt["requiere_confirmacion"],
                            "alternativas": rt.get("alternativas", []), "motivo_ruta": rt["motivo"],
                            "gate_previo": {"pasa": previo["pasa"], "fallos": previo["fallos"]},
-                           "banderas_forenses_graves": [b["bandera"] for b in fm["banderas"]]}
+                           "banderas_forenses_graves": [b["bandera"] for b in fm["banderas"] if b.get("nivel") == "grave"],
+                           "banderas_forenses_informativas": [b["bandera"] for b in fm["banderas"] if b.get("nivel") == "informativa"]}
     if not previo["pasa"]:
         res["siguiente"] = "cerrar (no_analizable): el checklist previo falla"
         return res

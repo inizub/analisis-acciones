@@ -105,6 +105,11 @@ def test_no_atractiva_por_dcf_inverso_sin_raiz_aunque_lo_demas_sea_atractivo():
     assert all(r["condiciones"]["atractiva"].values())     # precedencia de no_atractiva
 
 
+def test_dcf_inverso_sin_raiz_por_precio_barato_no_penaliza():
+    r = ver(.75, motor_=motor(sin_raiz=True, sentido="barato"))
+    assert r["veredicto"] == "atractiva"
+
+
 def test_no_atractiva_por_driver_con_z_mayor_que_3():
     assert ver(.75, motor_=motor(z=3.5))["veredicto"] == "no_atractiva"
     assert ver(.75, motor_=motor(z=3.0))["veredicto"] == "atractiva"      # z = 3 no es > 3

@@ -63,16 +63,26 @@ def _raiz(f: Callable[[float], float], a: float, b: float) -> float | None:
     return float(brentq(f, a, b, xtol=1e-10, rtol=1e-12, maxiter=500))
 
 
+def _sentido(f: Callable[[float], float], a: float) -> str:
+    """Sin raíz: "barato" si ya con el valor más bajo del rango el modelo supera el precio (el valor crece con el driver);
+    "caro" si ni con el más alto se alcanza."""
+    return "barato" if f(a) > 0 else "caro"
+
+
 def resolver_crecimiento(precio: float, base: dict, rango: tuple[float, float] = RANGO_CRECIMIENTO) -> dict:
-    g = _raiz(lambda x: valor_dcf(base, crecimiento=x) - precio, *rango)
-    return {"driver": "crecimiento_ingresos", "valor": g, "sin_raiz": g is None, "rango": list(rango)}
+    f = lambda x: valor_dcf(base, crecimiento=x) - precio  # noqa: E731
+    g = _raiz(f, *rango)
+    return {"driver": "crecimiento_ingresos", "valor": g, "sin_raiz": g is None, "rango": list(rango),
+            "sentido": None if g is not None else _sentido(f, rango[0])}
 
 
 def resolver_margen(precio: float, base: dict, rango: tuple[float, float] = RANGO_MARGEN) -> dict:
     # El margen objetivo implícito; se anula la convergencia desde el margen inicial para que el margen sea único.
     b = {k: v for k, v in base.items() if k not in ("margen_inicial", "anios_convergencia_margen")}
-    m = _raiz(lambda x: valor_dcf(b, margen=x) - precio, *rango)
-    return {"driver": "margen_operativo", "valor": m, "sin_raiz": m is None, "rango": list(rango)}
+    f = lambda x: valor_dcf(b, margen=x) - precio  # noqa: E731
+    m = _raiz(f, *rango)
+    return {"driver": "margen_operativo", "valor": m, "sin_raiz": m is None, "rango": list(rango),
+            "sentido": None if m is not None else _sentido(f, rango[0])}
 
 
 def resolver_anios_ventaja(precio: float, base: dict, rango: tuple[int, int] = RANGO_ANIOS) -> dict:
@@ -86,7 +96,7 @@ def resolver_anios_ventaja(precio: float, base: dict, rango: tuple[int, int] = R
         valores.append(v)
         if v >= precio:
             return {"driver": "anios_ventaja", "valor": n, "sin_raiz": False, "rango": list(rango)}
-    return {"driver": "anios_ventaja", "valor": None, "sin_raiz": True, "rango": list(rango),
+    return {"driver": "anios_ventaja", "valor": None, "sin_raiz": True, "rango": list(rango), "sentido": "caro",
             "valor_maximo_alcanzado": max(valores)}
 
 
@@ -98,7 +108,8 @@ def resolver_roe(precio: float, base_banco: dict, rango: tuple[float, float] = R
                                    ke_estable=base_banco.get("ke_estable"), g_estable=base_banco.get("g_estable", 0.0)
                                    )["valor_por_accion"] - precio
     r = _raiz(f, *rango)
-    return {"driver": "roe", "valor": r, "sin_raiz": r is None, "rango": list(rango)}
+    return {"driver": "roe", "valor": r, "sin_raiz": r is None, "rango": list(rango),
+            "sentido": None if r is not None else _sentido(f, rango[0])}
 
 
 def resolver_roe_5_anios(precio: float, base_banco: dict, rango: tuple[float, float] = RANGO_ROE) -> dict:
@@ -109,7 +120,8 @@ def resolver_roe_5_anios(precio: float, base_banco: dict, rango: tuple[float, fl
                                    ke_estable=base_banco.get("ke_estable"), g_estable=base_banco.get("g_estable", 0.0)
                                    )["valor_por_accion"] - precio
     r = _raiz(f, *rango)
-    return {"driver": "roe_5_anios_luego_ke", "valor": r, "sin_raiz": r is None, "rango": list(rango)}
+    return {"driver": "roe_5_anios_luego_ke", "valor": r, "sin_raiz": r is None, "rango": list(rango),
+            "sentido": None if r is not None else _sentido(f, rango[0])}
 
 
 def resolver(precio: float, base: dict, ruta: str, tasas_base: dict | None = None) -> dict:
@@ -127,7 +139,7 @@ def resolver(precio: float, base: dict, ruta: str, tasas_base: dict | None = Non
             r["z"] = None if r["valor"] is None else (r["valor"] - tb["media"]) / tb["desv"]
     principal = res[0]
     return {"precio": precio, "ruta": ruta, "principal": principal, "resultados": res,
-            "sin_raiz": principal["sin_raiz"]}
+            "sin_raiz": principal["sin_raiz"], "sentido": principal.get("sentido")}
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -476,8 +476,11 @@ def resolver_factor(precio: float, base: dict, ruta: str, driver: str, rango: tu
 
     a, b = f(rango[0]), f(rango[1])
     raiz = None if a * b > 0 else float(brentq(f, *rango, xtol=1e-10))
-    principal = {"driver": driver, "valor": raiz, "sin_raiz": raiz is None, "rango": list(rango), "percentil": None}
-    return {"precio": precio, "ruta": ruta, "principal": principal, "resultados": [principal], "sin_raiz": raiz is None}
+    sentido = None if raiz is not None else ("barato" if a > 0 else "caro")
+    principal = {"driver": driver, "valor": raiz, "sin_raiz": raiz is None, "rango": list(rango), "percentil": None,
+                 "sentido": sentido}
+    return {"precio": precio, "ruta": ruta, "principal": principal, "resultados": [principal], "sin_raiz": raiz is None,
+            "sentido": sentido}
 
 
 def main(argv: list[str] | None = None) -> int:

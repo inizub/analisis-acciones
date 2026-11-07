@@ -87,11 +87,12 @@ def escenarios(nombre="A", e0=.50, e1=.60, e2=.55, e3=.10, e4=.75, exceso=6.0, p
         "ajustes_aplicados": [], "parametros": {}}
 
 
-def motor(sin_raiz=False, z=0.4):
+def motor(sin_raiz=False, z=0.4, sentido="caro"):
     principal = {"driver": "crecimiento_ingresos", "valor": None if sin_raiz else 0.09, "percentil": None if sin_raiz else 65.0,
-                 "z": None if sin_raiz else z, "sin_raiz": sin_raiz}
+                 "z": None if sin_raiz else z, "sin_raiz": sin_raiz, "sentido": sentido if sin_raiz else None}
     return {"base": {"ruta": "general", "precio0": 100.0, "ingresos0": 10 * MM * 1.05 ** 9},
-            "reverse_dcf": {"principal": principal, "resultados": [principal], "sin_raiz": sin_raiz}}
+            "reverse_dcf": {"principal": principal, "resultados": [principal], "sin_raiz": sin_raiz,
+                            "sentido": sentido if sin_raiz else None}}
 
 
 def sintesis():

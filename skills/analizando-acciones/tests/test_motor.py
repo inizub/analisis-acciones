@@ -83,6 +83,12 @@ def test_reverse_dcf_anios_ventaja():
 def test_reverse_dcf_sin_raiz():
     r = reverse_dcf.resolver_crecimiento(1e7, BASE_DCF)
     assert r["sin_raiz"] and r["valor"] is None
+    assert r["sentido"] == "caro"                       # ni con el mayor crecimiento se llega al precio
+
+
+def test_reverse_dcf_sin_raiz_por_precio_muy_bajo_es_barato():
+    r = reverse_dcf.resolver_crecimiento(0.01, BASE_DCF)
+    assert r["sin_raiz"] and r["sentido"] == "barato"
 
 
 def test_reverse_dcf_banco_roe():
