@@ -302,7 +302,7 @@ Todas las funciones devuelven valor por acción, puente de valor y supuestos usa
 - **`dcf.py`**
   - FCFF a 10 años: crecimiento de ingresos → margen operativo → ratio ventas/capital (reinversión) → impuestos.
   - Valor terminal con g ≤ Rf y ROIC terminal → WACC salvo moat documentado.
-  - WACC con Rf de la moneda, ERP + CRP de Damodaran, beta sectorial reapalancada y coste de deuda por rating sintético (cobertura de intereses).
+  - WACC con Rf de la moneda, ERP + CRP de Damodaran, beta desapalancada mezcla (50 %) de la sectorial y la propia de la acción frente a VWCE (Blume, nota 0013), reapalancada, y coste de deuda por rating sintético (cobertura de intereses).
 - **`reverse_dcf.py`**
   - Resuelve con `scipy.optimize.brentq`, en este orden:
     1. el crecimiento de ingresos implícito en [−20 %, 60 %], con márgenes del escenario base;

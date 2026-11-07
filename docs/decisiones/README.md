@@ -24,6 +24,7 @@ Cada nota tiene el mismo formato: **Contexto** (qué falló o qué se pidió), *
 | [0010](0010-instalacion-desde-github.md) | Instalación desde GitHub con alcance de usuario | 0.1.0 - 0.2.x |
 | [0011](0011-correcciones-de-datos.md) | Correcciones de datos: sector de Coca-Cola, deuda de Nucor, codificación y forense | 0.2.0 - 0.3.0 |
 | [0012](0012-dcf-inverso-sin-raiz-barato.md) | DCF inverso sin raíz: distinguir caro de barato | 0.3.1 |
+| [0013](0013-beta-mixta-sector-y-propia.md) | Beta del WACC: mezcla del sector y la propia | 0.3.2 |
 | [pruebas](pruebas-realizadas.md) | Registro de las pruebas con acciones reales y lo que destaparon | - |
 | [limitaciones](limitaciones-conocidas.md) | Lo que el plugin todavía no hace bien | - |
 

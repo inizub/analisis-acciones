@@ -103,6 +103,16 @@ def correlacion(accion: pd.Series, bench: pd.Series, anios: float) -> float | No
     return float(df.iloc[:, 0].corr(df.iloc[:, 1]))
 
 
+def beta(accion: pd.Series, bench: pd.Series, anios: float) -> float | None:
+    """Beta de los retornos semanales de la acción frente al benchmark (covarianza / varianza)."""
+    df = pd.concat([semanales(accion), semanales(bench)], axis=1, join="inner").dropna()
+    df = df.loc[df.index > df.index[-1] - pd.DateOffset(days=round(365.25 * anios))]
+    if len(df) < int(SEMANAS_ANIO * anios * 0.8):
+        return None
+    var = float(df.iloc[:, 1].var(ddof=1))
+    return float(df.iloc[:, 0].cov(df.iloc[:, 1]) / var) if var > 0 else None
+
+
 def momentum_12_1(serie: pd.Series, fin: pd.Timestamp | None = None) -> float | None:
     fin = fin if fin is not None else serie.index[-1]
     t12, t1 = fin - pd.DateOffset(months=12), fin - pd.DateOffset(months=1)
@@ -126,6 +136,7 @@ def metricas_relativas(accion_eur: pd.Series, bench_eur: pd.Series) -> dict[str,
     res["vol_1a"] = vol_absoluta(a, 1)
     res["vol_3a"] = vol_absoluta(a, 3)
     res["correlacion_3a"] = correlacion(a, b, 3)
+    res["beta_3a"] = beta(a, b, 3)
     ma, mb = momentum_12_1(a), momentum_12_1(b)
     res["momentum_12_1"] = ma
     res["momentum_12_1_bench"] = mb

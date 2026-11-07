@@ -73,7 +73,7 @@ def test_metricas_relativas_claves():
     a, b = paseo(1400, semilla=3), paseo(1400, semilla=4)
     m = precios.metricas_relativas(a, b)
     assert set(m) == {"rt_1a", "rt_bench_1a", "rt_rel_1a", "rt_3a", "rt_bench_3a", "rt_rel_3a", "rt_5a",
-                      "rt_bench_5a", "rt_rel_5a", "vol_rel_1a", "vol_rel_3a", "vol_1a", "vol_3a", "correlacion_3a",
+                      "rt_bench_5a", "rt_rel_5a", "vol_rel_1a", "vol_rel_3a", "vol_1a", "vol_3a", "correlacion_3a", "beta_3a",
                       "momentum_12_1", "momentum_12_1_bench", "momentum_12_1_rel"}
     assert m["rt_rel_1a"] == pytest.approx(m["rt_1a"] - m["rt_bench_1a"])
     assert m["rt_5a"] is not None
@@ -157,3 +157,13 @@ def test_cliente_precios_rate_limit_reintenta_y_falla(cache_tmp):
         precios.ClientePrecios(cache=cache_tmp, yf=yf, dormir=esperas.append).obtener("X")
     assert e.value.causa == "rate_limited"
     assert esperas == [2, 4, 8, 16, 32]
+
+
+def test_beta_semanal_frente_al_benchmark():
+    rng = np.random.default_rng(1)
+    r_b = rng.normal(0.002, 0.02, 800)
+    r_a = 1.5 * r_b + rng.normal(0, 0.005, 800)
+    b = serie(100 * np.cumprod(1 + r_b))
+    a = serie(100 * np.cumprod(1 + r_a))
+    assert precios.beta(a, b, 3) == pytest.approx(1.5, abs=0.2)
+    assert precios.beta(a, b, 30) is None            # sin historia suficiente

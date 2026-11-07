@@ -112,7 +112,7 @@ El porqué de los cambios hechos tras las primeras pruebas reales (qué falló, 
 
 ## Estado
 
-Versión 0.3.1. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
+Versión 0.3.2. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
 
 Limitaciones conocidas:
 

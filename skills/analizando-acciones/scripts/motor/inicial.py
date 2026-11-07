@@ -70,6 +70,29 @@ def saldo_reciente(dp: dict, campo: str) -> tuple[float | None, str | None]:
     return (anual[-1]["valor"], anual[-1]["fecha_dato"]) if anual else (None, None)
 
 
+def beta_desapalancada_mixta(dp: dict, cfg: dict, beta_sector: float, deuda: float, cap: float, t: float,
+                             avisos: list[str]) -> tuple[float, dict]:
+    """Mezcla la beta desapalancada del sector con la propia de la acción (ver `beta` en config.yaml).
+
+    La beta propia (frente a VWCE, semanal a 3 años) se ajusta con Blume, se limita al rango y se desapalanca con la
+    deuda/capitalización actual. Sin beta propia usa solo la sectorial. Devuelve (beta_u, detalle)."""
+    c = cfg.get("beta") or {}
+    peso = float(c.get("peso_propia", 0.0))
+    propia = _valor(((dp.get("precios") or {}).get("metricas_eur") or {}).get("beta_3a"))
+    detalle = {"sector": beta_sector, "propia_bruta": propia, "peso_propia": 0.0, "beta_desapalancada": beta_sector}
+    if propia is None or peso <= 0:
+        return beta_sector, detalle
+    lo, hi = c.get("rango_propia", [0.4, 2.5])
+    ajustada = min(max(0.67 * propia + 0.33, lo), hi)
+    propia_u = ajustada / (1 + (1 - t) * (deuda / cap if cap > 0 else 0.0))
+    mezcla = peso * propia_u + (1 - peso) * beta_sector
+    detalle.update(propia_ajustada=ajustada, propia_desapalancada=propia_u, peso_propia=peso, beta_desapalancada=mezcla)
+    if abs(propia_u - beta_sector) > 0.5:
+        avisos.append(f"Beta: la del sector ({beta_sector:.2f}) y la propia de la acción ({propia_u:.2f}, desapalancada) "
+                      f"difieren mucho; se usa la mezcla {mezcla:.2f}")
+    return mezcla, detalle
+
+
 def _requerido(dp: dict, campo: str) -> float:
     v = _ultimo(dp, campo)
     exigir(v is not None, f"falta {campo} en el datapack")
@@ -365,6 +388,7 @@ def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos)
                           "quema o genera mucha caja, la deuda neta actual puede ser distinta")
     beta_u = _sector(dp, "betas.beta_desapalancada_caja") or _sector(dp, "betas.beta_desapalancada")
     exigir(beta_u is not None, "sin beta desapalancada sectorial")
+    beta_u, supuestos["beta"] = beta_desapalancada_mixta(dp, cfg, beta_u, deuda, cap, t, avisos)
     kd = coste_deuda(dp, rf, crp, avisos)
     w = calcular_wacc(rf=rf, erp=erp, beta_desapalancada=beta_u, deuda_capital=deuda / cap if cap > 0 else 0.0,
                       tasa_impuestos=t, crp=crp, **kd)

@@ -357,3 +357,31 @@ def test_sin_trimestres_la_base_es_anual_sin_avisos_nuevos():
     m = construir()
     assert m["base"]["base_ingresos"]["metodo"] == "anual"
     assert not any("últimos doce meses" in a or "no se pueden encadenar" in a for a in m["supuestos"]["avisos"])
+
+
+def test_beta_mixta_mezcla_sector_y_propia_con_ajuste_de_blume():
+    cfg = comun.cargar_config()
+    dp = dp_con_tasas()
+    dp["precios"]["metricas_eur"]["beta_3a"] = {"valor": 1.0}
+    b, d = inicial.beta_desapalancada_mixta(dp, cfg, 1.55, deuda=0.0, cap=100.0, t=0.25, avisos=[])
+    propia = 0.67 * 1.0 + 0.33
+    assert d["propia_ajustada"] == pytest.approx(propia)
+    assert b == pytest.approx(0.5 * propia + 0.5 * 1.55)
+
+
+def test_beta_mixta_sin_beta_propia_usa_el_sector_y_peso_cero_tambien():
+    cfg = comun.cargar_config()
+    dp = dp_con_tasas()
+    dp["precios"]["metricas_eur"].pop("beta_3a", None)
+    assert inicial.beta_desapalancada_mixta(dp, cfg, 1.2, 0.0, 100.0, 0.25, [])[0] == 1.2
+    dp["precios"]["metricas_eur"]["beta_3a"] = {"valor": 0.5}
+    cfg["beta"]["peso_propia"] = 0
+    assert inicial.beta_desapalancada_mixta(dp, cfg, 1.2, 0.0, 100.0, 0.25, [])[0] == 1.2
+
+
+def test_beta_mixta_limita_la_beta_propia_al_rango():
+    cfg = comun.cargar_config()
+    dp = dp_con_tasas()
+    dp["precios"]["metricas_eur"]["beta_3a"] = {"valor": 9.0}
+    _, d = inicial.beta_desapalancada_mixta(dp, cfg, 1.0, 0.0, 100.0, 0.25, [])
+    assert d["propia_ajustada"] == cfg["beta"]["rango_propia"][1]
