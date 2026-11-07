@@ -2,6 +2,7 @@ import copy
 import json
 import math
 
+import numpy as np
 import pytest
 from scipy import stats
 
@@ -111,6 +112,23 @@ def test_cuanto_mas_caro_menos_p_de_batir_y_mas_p_de_caer():
           for x in (20.0, 40.0, 80.0, 160.0)]
     e1, e3 = [q["E1"] for q in ps], [q["E3"] for q in ps]
     assert e1 == sorted(e1, reverse=True) and e3 == sorted(e3)
+
+
+def test_la_desviacion_creible_satura_suave_y_es_monotona():
+    c = cfg(1000)
+    x = escenarios.desviacion_creible(np.array([0.1, 0.25, 0.5, 0.83, 1.0, 1.2, 2.0, 4.0, 10.0]), c)
+    assert list(x) == sorted(x) and x[4] == pytest.approx(1.0)
+    assert x[5] == pytest.approx(1.2, abs=0.02)                  # cerca del precio, casi sin cambio
+    assert 0.5 < x[1] < 0.55 and 1.85 < x[7] < 2.0               # 0,25× y 4× se acercan al tope de 2×
+    c["escenarios"]["tope_desviacion"] = None
+    assert escenarios.desviacion_creible(np.array([0.25]), c)[0] == pytest.approx(0.25)
+
+
+def test_atractiva_sigue_siendo_alcanzable_con_una_infravaloracion_clara():
+    """Si todos los escenarios valen ≥ 2,5× el precio, p(E1) supera el umbral de atractiva (0,55)."""
+    r = escenarios.ejecutar(ANALISTA, {"base": dict(BASE, precio0=10.0)}, cfg=cfg(40_000))
+    assert min(e["valor_sobre_p0"] for e in r["escenarios"]) > 2.5
+    assert r["probabilidades"]["E1"] >= 0.55
 
 
 def test_la_mezcla_con_el_neutral_modera_los_extremos():

@@ -225,6 +225,17 @@ def cordura(rel: np.ndarray, cfg: dict) -> dict:
             "factor": f}
 
 
+def desviacion_creible(rel: np.ndarray, cfg: dict) -> np.ndarray:
+    """V/P0 que entra en la simulación: ln(V/P0) saturado de forma suave en ±ln(tope_desviacion).
+
+    Cerca del precio apenas cambia (1,2× → 1,19×); lejos se acerca al tope (4× → ~1,9×; 0,25× → ~0,52×). Monótono."""
+    tope = cfg["escenarios"].get("tope_desviacion")
+    if not tope:
+        return rel
+    L = math.log(tope)
+    return np.exp(L * np.tanh(np.log(rel) / L))
+
+
 def _ruido_t(rng: np.random.Generator, nu: float, size: Any) -> np.ndarray:
     """t de Student con varianza 1."""
     return rng.standard_t(nu, size=size) * math.sqrt((nu - 2) / nu)
@@ -307,12 +318,15 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     exigir(abs(probs.sum() - 1) < 1e-6, f"las probabilidades de los escenarios suman {probs.sum():.6f}")
     rel = np.array([e["valor_sobre_p0"] for e in escenarios])
     exigir(np.all(rel > 0), "un escenario tiene valor ≤ 0: el modelo no admite pérdida total; usa un valor positivo mínimo")
-    sim = simular(rel, probs, base, cfg)
+    rel_sim = desviacion_creible(rel, cfg)
+    for e, x in zip(escenarios, rel_sim):
+        e["valor_sobre_p0_simulado"] = float(x)
+    sim = simular(rel_sim, probs, base, cfg)
     T = cfg["escenarios"]["T_conv_anios"]
     k = cfg["agregacion"]["k"]
     r_vw = base["rf_eur"] + base["erp_vwce"]
     # Media aritmética a 12 meses de la misma mezcla: (1 + r_vw)·[k·Σ p_i·(V_i/P0)^(1/T) + (1 − k)] − 1
-    esperada = (1 + r_vw) * (k * float(np.sum(probs * rel ** (1 / T))) + (1 - k)) - 1
+    esperada = (1 + r_vw) * (k * float(np.sum(probs * rel_sim ** (1 / T))) + (1 - k)) - 1
     bajista = next(e for e in escenarios if e["nombre"] == "bajista")
     umbral_e4 = a["metrica_e4"]["valor_base"]
     p_e4 = sum(e["p"] for e in escenarios if e["valor_metrica_e4"] >= umbral_e4)

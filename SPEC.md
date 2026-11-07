@@ -323,7 +323,7 @@ Todas las funciones devuelven valor por acción, puente de valor y supuestos usa
   - **Entrada:** drivers y probabilidades por escenario de un analista, más `ajustes.json` opcional.
   - **Pasos:**
     1. Valor V_i por escenario, con el método de la ruta. En la ruta cíclica, si el analista da `crecimiento_ingresos`, se usa el DCF de 10 años con el margen convergiendo al normalizado.
-    2. La diferencia entre precio y valor se cierra en T_conv = 3 años (`config.yaml`); aparte, una acción a su valor rinde en media (aritmética) lo mismo que VWCE.
+    2. La diferencia entre precio y valor se cierra en T_conv = 3 años (`config.yaml`); aparte, una acción a su valor rinde en media (aritmética) lo mismo que VWCE. La diferencia que entra en la simulación se satura de forma suave en ~2× (`tope_desviacion`): un DCF que contradice al mercado por 4× es más probable que esté equivocado. Con T_conv = 5 el veredicto atractiva quedaba fuera de alcance, por eso se mantiene en 3.
     3. Rentabilidad de VWCE esperada = Rf EUR + ERP (Damodaran).
     4. Monte Carlo de 100.000 trayectorias mensuales con semilla fija y ruido t de Student (ν = 4). Cada trayectoria sigue, con probabilidad k = 0,4, un escenario del analista (según p_i) y, con 1 − k, el escenario neutral (V = P0). La rentabilidad relativa frente a VWCE usa la volatilidad relativa histórica en EUR; el precio, la volatilidad absoluta.
     5. **Coherencia:** E0-E3, los percentiles y el exceso esperado salen de esas mismas trayectorias. No se encoge cada evento por separado (eso producía, p. ej., 28 % de batir a VWCE junto a 81 % de caer un 30 % y un p95 negativo). *Cambio de noviembre de 2026 respecto a la versión inicial, a petición del usuario.*
