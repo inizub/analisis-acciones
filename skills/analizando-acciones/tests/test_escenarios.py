@@ -114,6 +114,21 @@ def test_cuanto_mas_caro_menos_p_de_batir_y_mas_p_de_caer():
     assert e1 == sorted(e1, reverse=True) and e3 == sorted(e3)
 
 
+def test_un_escenario_con_valor_negativo_se_fija_en_un_piso_en_vez_de_abortar():
+    """Un margen bajista de −30 % con deuda hace que el DCF del bajista dé valor ≤ 0; una acción no vale menos que cero."""
+    base = dict(BASE)
+    a = copy.deepcopy(ANALISTA)
+    bajista = next(e for e in a["escenarios"] if e["nombre"] == "bajista")
+    bajista["drivers"]["margen_operativo"]["valor"] = -0.30
+    r = escenarios.ejecutar(a, {"base": base}, cfg=cfg(5_000))
+    bj = next(e for e in r["escenarios"] if e["nombre"] == "bajista")
+    assert bj["piso_aplicado"] is True and bj["valor_bruto"] < 0
+    assert bj["valor_sobre_p0"] == pytest.approx(0.02) and r["perdida_escenario_bajista"] == pytest.approx(0.98)
+    assert all(0 <= v <= 1 for v in r["probabilidades"].values())
+    otros = [e for e in r["escenarios"] if e["nombre"] != "bajista"]
+    assert all("piso_aplicado" not in e for e in otros)
+
+
 def test_la_desviacion_creible_satura_suave_y_es_monotona():
     c = cfg(1000)
     x = escenarios.desviacion_creible(np.array([0.1, 0.25, 0.5, 0.83, 1.0, 1.2, 2.0, 4.0, 10.0]), c)

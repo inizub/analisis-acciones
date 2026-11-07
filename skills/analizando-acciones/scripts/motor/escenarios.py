@@ -309,11 +309,16 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     exigir(p0 > 0, "precio0 debe ser positivo")
     escenarios = []
     base = {**base, "moat_documentado": moat_documentado(a)}
+    piso = cfg["escenarios"].get("valor_minimo_sobre_precio", 0.02)
     for e in a["escenarios"]:
         v = valorar(ruta, base, e["drivers"])
-        escenarios.append({"nombre": e["nombre"], "p": e["p"], "valor": v["valor"], "valor_sobre_p0": v["valor"] / p0,
+        valor, bruto = v["valor"], None
+        if valor <= piso * p0:      # una acción no vale menos que cero: piso pequeño y positivo, con constancia
+            valor, bruto = piso * p0, v["valor"]
+        escenarios.append({"nombre": e["nombre"], "p": e["p"], "valor": valor, "valor_sobre_p0": valor / p0,
                            "metodo": v["metodo"], "drivers_usados": v["drivers_usados"],
-                           "valor_metrica_e4": e["valor_metrica_e4"]})
+                           "valor_metrica_e4": e["valor_metrica_e4"],
+                           **({"piso_aplicado": True, "valor_bruto": bruto} if bruto is not None else {})})
     probs = np.array([e["p"] for e in escenarios], dtype=float)
     exigir(abs(probs.sum() - 1) < 1e-6, f"las probabilidades de los escenarios suman {probs.sum():.6f}")
     rel = np.array([e["valor_sobre_p0"] for e in escenarios])

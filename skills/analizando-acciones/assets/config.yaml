@@ -10,7 +10,9 @@ veredicto: {atractiva_p_E1: 0.55, atractiva_exceso_pp: 5, atractiva_max_perdida_
 # tope_desviacion: el modelo puede afirmar como mucho ~este factor de diferencia entre valor y precio. Más allá, la
 # diferencia se satura de forma suave (ln(V/P0) → L·tanh(ln(V/P0)/L), L = ln(tope)): un DCF que contradice al mercado
 # por 4× es más probable que esté equivocado que el mercado. Es monótono: más caro nunca da mejores probabilidades.
-escenarios: {T_conv_anios: 3, mc_sims: 100000, t_nu: 4, semilla: 42, tope_desviacion: 2.0}
+# valor_minimo_sobre_precio: una acción no vale menos que cero (responsabilidad limitada). Si el DCF de un escenario da
+# un valor ≤ 0 (pérdidas y deuda grandes), se usa este piso (fracción del precio) y se deja constancia en la salida.
+escenarios: {T_conv_anios: 3, mc_sims: 100000, t_nu: 4, semilla: 42, tope_desviacion: 2.0, valor_minimo_sobre_precio: 0.02}
 # Cordura del modelo: si el precio queda a más de este factor del rango de valores de los escenarios (todos muy por debajo
 # o muy por encima), el resultado depende mucho de los supuestos. Con bloquea: false es un aviso visible en el resumen;
 # con bloquea: true el checklist (punto 12) lo cierra como no_analizable y el flujo salta red team y juez.
