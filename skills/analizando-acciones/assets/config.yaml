@@ -92,6 +92,9 @@ baselines:
   b0_e4: 0.5
 
 puntuacion:
+  # Solo se puntúan las predicciones emitidas con esta versión del plugin o posterior. Las anteriores usaban un método
+  # de probabilidades incoherente (0.1.x): siguen en el diario, pero mezclarlas falsearía la calibración.
+  version_minima: "0.2.0"
   clip_log: [0.02, 0.98]
   min_n_calibracion: 20
   min_n_dm: 10

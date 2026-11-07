@@ -183,7 +183,7 @@ def test_modelos_explicitos_y_hashes():
     v = dr.ensamblar_verdict(art, "rapido", {"analista": "claude-sonnet-5-5"}, "XYZ-2026-11-06-a", None, "2026-11-06T18:00:00Z")
     assert v["modelos"]["analista"] == "claude-sonnet-5-5"
     assert v["skill"]["hash_config"] == comun.hash_config() and v["skill"]["hash_prompts"].startswith("sha256:")
-    assert v["skill"]["version"] == "0.1.0"
+    assert v["skill"]["version"] == comun.version_plugin()
 
 
 # ---------------------------------------------------------------- cerrar

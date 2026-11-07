@@ -49,11 +49,29 @@ def _ts(texto: str) -> pd.Timestamp:
     return t.tz_convert(None) if t.tzinfo else t
 
 
-def cargar_filas(registros: list[dict]) -> tuple[pd.DataFrame, dict]:
-    """Una fila por pregunta resuelta de cada predicción original, y un recuento global del diario."""
+def _version(v: str | None) -> tuple[int, ...] | None:
+    """'0.2.1' → (0, 2, 1); None si no es una versión numérica."""
+    try:
+        return tuple(int(x) for x in str(v).split("."))
+    except ValueError:
+        return None
+
+
+def version_anterior(registro: dict, minima: str | None) -> bool:
+    """¿La predicción se emitió con una versión del plugin anterior a la mínima? Sin versión legible, no se excluye."""
+    if not minima:
+        return False
+    v, m = _version((registro.get("skill") or {}).get("version")), _version(minima)
+    return v is not None and m is not None and v < m
+
+
+def cargar_filas(registros: list[dict], version_minima: str | None = None) -> tuple[pd.DataFrame, dict]:
+    """Una fila por pregunta resuelta de cada predicción original, y un recuento global del diario.
+
+    Las predicciones de versiones anteriores a `version_minima` se cuentan aparte y no se puntúan."""
     res = dr.resoluciones(registros)
     filas, cuenta = [], {"predicciones": 0, "no_analizables": 0, "updates": 0, "resueltas": 0, "anuladas": 0,
-                         "pendientes": 0}
+                         "pendientes": 0, "version_anterior": 0}
     for r in registros:
         t = dr.tipo(r)
         if t == "update":
@@ -62,6 +80,9 @@ def cargar_filas(registros: list[dict]) -> tuple[pd.DataFrame, dict]:
             continue
         if r["veredicto"] == "no_analizable":
             cuenta["no_analizables"] += 1
+            continue
+        if version_anterior(r, version_minima):
+            cuenta["version_anterior"] += 1
             continue
         cuenta["predicciones"] += 1
         for q in r["preguntas"]:
@@ -178,7 +199,7 @@ def puntuar_grupo(g: pd.DataFrame, qid: str, cfg: dict) -> dict:
 
 def puntuar(registros: list[dict], cfg: dict | None = None) -> dict:
     cfg = cfg or comun.cargar_config()
-    df, cuenta = cargar_filas(registros)
+    df, cuenta = cargar_filas(registros, cfg["puntuacion"].get("version_minima"))
     grupos = []
     for (qid, modo), g in df.groupby(["qid", "modo"], sort=True):
         grupos.append(puntuar_grupo(g, qid, cfg))
@@ -198,7 +219,8 @@ def _f(x: float | None, dec: int = 3) -> str:
 def informe_md(res: dict, etiqueta: str) -> str:
     c = res["cuenta"]
     L = [f"# Informe de puntuación {etiqueta}", "",
-         f"Predicciones: {c['predicciones']} · no analizables: {c['no_analizables']} · updates: {c['updates']}", "",
+         f"Predicciones: {c['predicciones']} · no analizables: {c['no_analizables']} · updates: {c['updates']}"
+         + (f" · de versiones anteriores (no puntuadas): {c['version_anterior']}" if c.get("version_anterior") else ""), "",
          f"Preguntas: {c['resueltas']} resueltas · {c['anuladas']} anuladas · {c['pendientes']} pendientes", ""]
     if not res["grupos"]:
         return "\n".join(L + ["Todavía no hay preguntas resueltas que puntuar.", ""])

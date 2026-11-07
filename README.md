@@ -108,7 +108,7 @@ claude plugin eval . --allow-tools Bash Write Edit WebFetch WebSearch --runs 1
 
 ## Estado
 
-Versión 0.1.0. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
+Versión 0.2.0. Construido según la sección A15 de `SPEC.md` (pasos 1 a 6 y 8). El red team externo (paso 7) no se usa: el red team lo hace siempre el subagente de Claude.
 
 Limitaciones conocidas:
 

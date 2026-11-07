@@ -142,7 +142,8 @@ def test_cargar_filas_ignora_updates_anuladas_pendientes_y_no_analizables():
             prediccion(9, veredicto="no_analizable") | {"preguntas": []}, p4, resolucion(p4, 0)]
     df, cuenta = puntuar.cargar_filas(regs)
     assert list(df["id"]) == [p1["id"], p4["id"]] and list(df["y"]) == [1, 0]
-    assert cuenta == {"predicciones": 4, "no_analizables": 1, "updates": 1, "resueltas": 2, "anuladas": 1, "pendientes": 1}
+    assert cuenta == {"predicciones": 4, "no_analizables": 1, "updates": 1, "resueltas": 2, "anuladas": 1, "pendientes": 1,
+                      "version_anterior": 0}
 
 
 def test_se_puntua_la_probabilidad_preregistrada():
@@ -243,3 +244,42 @@ def test_cli(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["cuenta"]["resueltas"] == 12
     assert puntuar.main(["informe", "--diario", str(diario), "--hoy", "2026-05-01"]) == 0
     assert (tmp_path / "d" / "informes" / "2026-T2.md").exists()
+
+
+# ---------------------------------------------------------------- versiones anteriores
+
+def test_las_predicciones_de_versiones_anteriores_no_se_puntuan_pero_se_cuentan():
+    viejas = [prediccion(i, p=.9) for i in range(5)]
+    for v in viejas:
+        v["skill"]["version"] = "0.1.0"
+    nuevas = [prediccion(10 + i, p=.4) for i in range(3)]
+    for v in nuevas:
+        v["skill"]["version"] = "0.2.0"
+    sin_version = prediccion(20, p=.4)
+    regs = []
+    for v in viejas + nuevas + [sin_version]:
+        regs += [v, resolucion(v, 1)]
+    df, cuenta = puntuar.cargar_filas(regs, "0.2.0")
+    assert cuenta["version_anterior"] == 5 and cuenta["predicciones"] == 4 and cuenta["resueltas"] == 4
+    assert set(df["id"]) == {v["id"] for v in nuevas + [sin_version]}      # sin versión legible: no se excluye
+    df_todas, c2 = puntuar.cargar_filas(regs, None)
+    assert c2["version_anterior"] == 0 and len(df_todas) == 9
+
+
+def test_version_minima_compara_numeros_no_texto():
+    r = {"skill": {"version": "0.10.0"}}
+    assert puntuar.version_anterior({"skill": {"version": "0.9.3"}}, "0.10.0") is True
+    assert puntuar.version_anterior(r, "0.9.3") is False and puntuar.version_anterior(r, "0.10.0") is False
+    assert puntuar.version_anterior(r, None) is False
+
+
+def test_el_informe_menciona_las_predicciones_excluidas():
+    res = {"cuenta": {"predicciones": 0, "no_analizables": 0, "updates": 0, "resueltas": 0, "anuladas": 0,
+                      "pendientes": 0, "version_anterior": 3}, "grupos": []}
+    assert "de versiones anteriores (no puntuadas): 3" in puntuar.informe_md(res, "2026-T4")
+
+
+def test_la_configuracion_real_excluye_las_0_1_x():
+    cfg = comun.cargar_config()
+    assert cfg["puntuacion"]["version_minima"] == comun.version_plugin() or puntuar.version_anterior(
+        {"skill": {"version": "0.1.0"}}, cfg["puntuacion"]["version_minima"])

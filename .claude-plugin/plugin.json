@@ -1,6 +1,6 @@
 {
   "name": "analisis-acciones",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Analiza una acción a partir de su ticker: datos de fuentes primarias, valoración en código, fase ciega con dos encuadres, red team y juez. Devuelve un veredicto con probabilidades frente a VWCE y lo registra en un diario de predicciones.",
   "author": {
     "name": "Iñigo"
