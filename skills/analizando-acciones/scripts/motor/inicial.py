@@ -228,7 +228,7 @@ def _ttm_campo(dp: dict, campo: str) -> tuple[float | None, str, str]:
     return anual[-1]["valor"] + suma_nuevos - suma_previos, str(esperado), ""
 
 
-def base_doce_meses(dp: dict, avisos: list[str]) -> dict:
+def base_doce_meses(dp: dict, avisos: list[str], max_meses: float = 6.0) -> dict:
     """Ingresos y beneficio operativo de los últimos doce meses si hay trimestres posteriores al último ejercicio.
 
     {"metodo": "ttm" | "anual", "fecha_fin", "ingresos", "beneficio_operativo", "desfase_meses"}. Si hay trimestres
@@ -259,6 +259,9 @@ def base_doce_meses(dp: dict, avisos: list[str]) -> dict:
         if hay_nuevos:
             avisos.append(f"Base de ingresos: últimos doce meses hasta {fin} (último ejercicio + trimestres posteriores)")
     res["desfase_meses"] = round((fecha_analisis - _f(fin)).days / 30.4, 1) if fecha_analisis and fin else None
+    if res["metodo"] == "anual" and res["desfase_meses"] is not None and res["desfase_meses"] > max_meses:
+        avisos.append(f"Base de ingresos del último ejercicio ({fin}), de hace {res['desfase_meses']:.0f} meses y sin "
+                      "trimestres posteriores: el valor puede quedarse corto si la empresa crece o se contrae")
     return res
 
 
@@ -319,7 +322,7 @@ def construir(dp: dict, router: dict, macro: dict, cfg: dict | None = None,
 def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos):
     mc = cfg["motor"]
     ing, ebit = _requerido(dp, "ingresos"), _requerido(dp, "beneficio_operativo")
-    b12 = base_doce_meses(dp, avisos)
+    b12 = base_doce_meses(dp, avisos, cfg["datos"]["base_max_meses"])
     if b12["metodo"] == "ttm":
         ing, ebit = b12["ingresos"], b12["beneficio_operativo"]
     deuda, caja = _requerido(dp, "deuda_total"), _requerido(dp, "caja")

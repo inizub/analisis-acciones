@@ -11,7 +11,8 @@ sic_desde,sic_hasta,industria_damodaran,ruta,ciclica,motivo
 1520,1531,Homebuilding,general,0,promoción de viviendas
 1532,1799,Engineering/Construction,general,0,construcción
 2000,2079,Food Processing,general,0,alimentación
-2080,2085,Beverage (Alcoholic),general,0,bebidas alcohólicas
+2080,2080,Beverage (Soft),general,0,bebidas (SIC genérico 2080; lo usa Coca-Cola)
+2081,2085,Beverage (Alcoholic),general,0,bebidas alcohólicas
 2086,2087,Beverage (Soft),general,0,refrescos
 2088,2099,Food Processing,general,0,alimentación
 2100,2199,Tobacco,general,0,tabaco

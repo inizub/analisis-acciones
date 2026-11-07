@@ -209,6 +209,17 @@ def test_datos_con_clientes_simulados(tmp_path, fixture, cache_tmp):
     assert any("banca/cet1" in f for f in res["campos_criticos_faltan"]) and res["necesita_agente_datos"] is True
 
 
+def test_trimestres_pendientes_si_la_base_anual_es_antigua_y_no_hay_trimestres():
+    from test_inicial import _dp_con_trimestres
+    dp, _, _ = _dp_con_trimestres()                                  # ejercicio al 2025-12-31 y trimestres hasta 2026-06-30
+    dp["fecha_analisis"] = "2026-11-06"
+    assert ejecucion.trimestres_pendientes(dp) is False              # ya trae los trimestres
+    del dp["trimestrales"]
+    assert ejecucion.trimestres_pendientes(dp) is True               # 10 meses sin trimestres
+    dp["fecha_analisis"] = "2026-03-01"
+    assert ejecucion.trimestres_pendientes(dp) is False              # base de hace 2 meses: no hace falta
+
+
 def test_cli(tmp_path, capsys):
     assert ejecucion.main(["iniciar", "--entrada", "XYZ rapido", "--journal", str(tmp_path / "j"), "--fecha", "2026-11-06"]) == 0
     assert json.loads(capsys.readouterr().out)["modo"] == "rapido"

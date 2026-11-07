@@ -65,7 +65,8 @@ PY ejecucion.py datos --dir "RUN"
 Lanza el agente `analisis-acciones:datos` con este encargo (sustituye los valores):
 
 > Directorio de la ejecución: RUN. Ticker: TICKER. Modo: MODO. Campos que faltan: <lista campos_criticos_faltan y
-> campos_desconocidos del paso 2>. Lee RUN/datapack_base.json, completa los huecos con fuentes primarias y escribe
+> campos_desconocidos del paso 2>. Trimestrales pendientes: <trimestrales_pendientes del paso 2; si es `true`, trae todos
+> los trimestres posteriores al último ejercicio y los mismos del año anterior>. Lee RUN/datapack_base.json, completa los huecos con fuentes primarias y escribe
 > RUN/datos_agente.json.
 
 Después:

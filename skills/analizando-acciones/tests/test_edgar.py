@@ -318,3 +318,16 @@ def test_cliente_429_persistente_es_rate_limited(cache_tmp):
     with pytest.raises(comun.ErrorDatos) as e:
         c.mapa_tickers()
     assert e.value.causa == "rate_limited"
+
+
+def test_deuda_con_el_concepto_que_incluye_arrendamientos_financieros():
+    """Nucor dejó de usar LongTermDebt (2016) y LongTermDebtNoncurrent (2018): hoy reporta la deuda con otro concepto."""
+    f = facts(
+        LongTermDebt={"USD": [h(4360, "2016-12-31", "2017-02-20")]},
+        LongTermDebtNoncurrent={"USD": [h(4233, "2018-12-31", "2019-02-20")]},
+        LongTermDebtAndCapitalLeaseObligations={"USD": [h(6909, "2025-12-31", "2026-02-20")]},
+        LongTermDebtCurrent={"USD": [h(66, "2025-12-31", "2026-02-20")]},
+    )
+    v = edgar.extraer_campo(f, "us-gaap", "deuda_total", 10, URL, OBT)
+    assert v["serie"][-1]["fecha_dato"] == "2025-12-31" and v["serie"][-1]["valor"] == 6909 + 66
+    assert v["concepto"].startswith("LongTermDebtAndCapitalLeaseObligations+")

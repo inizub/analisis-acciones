@@ -294,7 +294,15 @@ def test_trimestres_no_contiguos_no_se_encadenan():
     assert m["base"]["base_ingresos"]["metodo"] == "anual" and any("no son contiguos" in a for a in m["supuestos"]["avisos"])
 
 
+def test_base_anual_antigua_sin_trimestres_avisa():
+    dp, _, _ = _dp_con_trimestres()
+    del dp["trimestrales"]
+    dp["fecha_analisis"] = "2026-11-06"
+    m = construir(dp)
+    assert any("de hace 10 meses y sin trimestres posteriores" in a for a in m["supuestos"]["avisos"])
+
+
 def test_sin_trimestres_la_base_es_anual_sin_avisos_nuevos():
     m = construir()
     assert m["base"]["base_ingresos"]["metodo"] == "anual"
-    assert not any("Base de ingresos" in a for a in m["supuestos"]["avisos"])
+    assert not any("últimos doce meses" in a or "no se pueden encadenar" in a for a in m["supuestos"]["avisos"])

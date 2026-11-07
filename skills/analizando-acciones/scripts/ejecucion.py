@@ -139,6 +139,26 @@ def preparar_macro(d: Path, journal: Path) -> dict:
     return comun.leer_json(d / "macro_regime.json")
 
 
+def trimestres_pendientes(dp: dict, cfg: dict | None = None) -> bool:
+    """¿El último ejercicio anual de ingresos es antiguo y el datapack no trae trimestres posteriores?
+
+    EDGAR (companyfacts anual) no trae los trimestres: sin ellos la base de ingresos sería la del último ejercicio."""
+    from datetime import date
+
+    from motor import inicial
+
+    cfg = cfg or comun.cargar_config()
+    anual = inicial._serie(dp, "ingresos")
+    if not anual or not dp.get("fecha_analisis"):
+        return False
+    fin = date.fromisoformat(anual[-1]["fecha_dato"][:10])
+    if (date.fromisoformat(dp["fecha_analisis"][:10]) - fin).days <= cfg["datos"]["base_max_meses"] * 30.4:
+        return False
+    t = (dp.get("trimestrales") or {}).get("ingresos") or {}
+    trim = [] if comun.es_desconocido(t) else (t.get("serie") or [])
+    return not any((date.fromisoformat(q["fecha_dato"][:10]) - fin).days > inicial.TOL_DIAS for q in trim)
+
+
 def datos(d: Path, clientes: dict | None = None) -> dict:
     from datos import datapack_base
     import validar
@@ -160,10 +180,12 @@ def datos(d: Path, clientes: dict | None = None) -> dict:
     modo = a.get("modo", "completo")
     # Fuera de alcance por SIC o por historia insuficiente: no merece la pena buscar más datos.
     fuera = r["ruta"] == "fuera_de_alcance"
+    pendientes = (not inexistente) and (not fuera) and trimestres_pendientes(dp)
     return {"ticker": ticker, "ruta_provisional": r["ruta"], "campos_criticos_faltan": faltan,
             "campos_desconocidos": dp["campos_desconocidos"], "ticker_inexistente": inexistente,
-            "fuera_de_alcance": fuera,
-            "necesita_agente_datos": (not inexistente) and (not fuera) and (modo == "completo" or bool(faltan)),
+            "fuera_de_alcance": fuera, "trimestrales_pendientes": pendientes,
+            "necesita_agente_datos": (not inexistente) and (not fuera)
+            and (modo == "completo" or bool(faltan) or pendientes),
             "macro": {k: reg.get(k, {}).get("etiqueta") for k in ("tipos", "credito", "curva")} if reg else None}
 
 

@@ -56,7 +56,9 @@ router: {biotech_ingresos_max_musd: 50, ebit_negativo_min_anios: 2, ebit_ventana
          anios_estados_min: 2}
 tasas_base: {clases_musd: [100, 500, 2000, 5000, 10000, 50000], ventas_min_musd: 100, winsor: [1, 99],
              anio_inicio: 2009, anio_fin: 2025, z_evidencia: 2, z_imposible: 3}
-datos: {discrepancia_max: 0.02, precio_max_dias: 3}
+# base_max_meses: si el último ejercicio anual es más antiguo y no hay trimestres posteriores, se llama al agente de
+# datos aunque no falte ningún campo (la base de ingresos sería la de hace casi un año).
+datos: {discrepancia_max: 0.02, precio_max_dias: 3, base_max_meses: 6}
 
 # Checklist (gate.py). Rutas de campos con "/" como separador (las claves de Damodaran contienen puntos).
 gate:

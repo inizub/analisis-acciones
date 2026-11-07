@@ -67,6 +67,8 @@ CAMPOS: dict[str, dict[str, Any]] = {
     "deuda_total": {"tipo": "saldo", "unidad": "moneda",
         "us-gaap": ["LongTermDebt", "DebtLongtermAndShorttermCombinedAmount",
                     ("LongTermDebtNoncurrent", "?LongTermDebtCurrent", "?CommercialPaper", "?ShortTermBorrowings"),
+                    ("LongTermDebtAndCapitalLeaseObligations", "?LongTermDebtCurrent", "?CommercialPaper",
+                     "?ShortTermBorrowings"),
                     "LongTermDebtNoncurrent"],
         "ifrs-full": ["Borrowings", ("LongtermBorrowings", "?ShorttermBorrowings", "?CurrentPortionOfLongtermBorrowings")]},
     "caja": {"tipo": "saldo", "unidad": "moneda",

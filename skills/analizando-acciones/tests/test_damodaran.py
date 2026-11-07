@@ -133,6 +133,10 @@ def test_archivo_conjunto(conj, region, archivo):
     (3711, "Auto & Truck", "general", True),
     (1311, "Oil/Gas (Production and Exploration)", "general", True),
     (3571, "Computers/Peripherals", "general", False),
+    (2080, "Beverage (Soft)", "general", False),       # SIC genérico de Coca-Cola: no es alcohol
+    (2086, "Beverage (Soft)", "general", False),
+    (2082, "Beverage (Alcoholic)", "general", False),
+    (2085, "Beverage (Alcoholic)", "general", False),
 ])
 def test_clasificar_sic(sic, industria, ruta, ciclica):
     c = damodaran.clasificar_sic(sic)
