@@ -294,6 +294,27 @@ def test_trimestres_no_contiguos_no_se_encadenan():
     assert m["base"]["base_ingresos"]["metodo"] == "anual" and any("no son contiguos" in a for a in m["supuestos"]["avisos"])
 
 
+def test_sin_beneficio_operativo_trimestral_se_usan_los_ingresos_de_12_meses_con_el_margen_anual():
+    """Nucor: hay ingresos trimestrales pero no resultado operativo trimestral."""
+    dp, anual, anual_ebit = _dp_con_trimestres()
+    del dp["trimestrales"]["beneficio_operativo"]
+    m = construir(dp)
+    esperado = anual + (0.30 + 0.35 - 0.18 - 0.20) * anual
+    b = m["base"]
+    assert b["base_ingresos"]["metodo"] == "ttm_ingresos" and b["ingresos0"] == pytest.approx(esperado)
+    assert b["margen_inicial"] == pytest.approx(anual_ebit / anual)          # margen del último ejercicio
+    assert any("se mantiene el margen operativo del último ejercicio" in a for a in m["supuestos"]["avisos"])
+    assert not any("de hace" in a and "sin trimestres posteriores" in a for a in m["supuestos"]["avisos"])
+
+
+def test_beneficio_operativo_aproximado_se_avisa():
+    dp = dp_con_tasas()
+    assert not any("aproximado" in a for a in construir(dp)["supuestos"]["avisos"])
+    for p in dp["fundamentales"]["beneficio_operativo"]["serie"]:
+        p["concepto"] = "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest+InterestExpense"
+    assert any("Beneficio operativo aproximado" in a for a in construir(dp)["supuestos"]["avisos"])
+
+
 def test_base_anual_antigua_sin_trimestres_avisa():
     dp, _, _ = _dp_con_trimestres()
     del dp["trimestrales"]

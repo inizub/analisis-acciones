@@ -320,6 +320,32 @@ def test_cliente_429_persistente_es_rate_limited(cache_tmp):
     assert e.value.causa == "rate_limited"
 
 
+EBT = "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"
+
+
+def test_beneficio_operativo_de_respaldo_solo_si_no_hay_resultado_operativo():
+    """Nucor no publica OperatingIncomeLoss: EBIT ≈ resultado antes de impuestos + intereses − ingresos por intereses."""
+    ini, fin = "2025-01-01", "2025-12-31"
+    f = facts(**{EBT: {"USD": [h(2568, fin, "2026-02-20", start=ini)]},
+                 "InterestExpense": {"USD": [h(170, fin, "2026-02-20", start=ini)]},
+                 "InvestmentIncomeInterest": {"USD": [h(100, fin, "2026-02-20", start=ini)]}})
+    v = edgar.extraer_campo(f, "us-gaap", "beneficio_operativo", 10, URL, OBT)
+    assert v["serie"][0]["valor"] == 2568 + 170 - 100
+    assert "BeforeIncomeTaxes" in v["serie"][0]["concepto"] and "-InvestmentIncomeInterest" in v["concepto"]
+    # sin gasto ni ingreso por intereses (opcionales): solo el resultado antes de impuestos
+    f2 = facts(**{EBT: {"USD": [h(2568, fin, "2026-02-20", start=ini)]}})
+    assert edgar.extraer_campo(f2, "us-gaap", "beneficio_operativo", 10, URL, OBT)["serie"][0]["valor"] == 2568
+
+
+def test_el_respaldo_nunca_se_mezcla_con_el_resultado_operativo_publicado():
+    ini, fin = "2025-01-01", "2025-12-31"
+    f = facts(OperatingIncomeLoss={"USD": [h(900, fin, "2026-02-20", start=ini)]},
+              **{EBT: {"USD": [h(2568, fin, "2026-02-20", start=ini), h(2000, "2024-12-31", "2025-02-20", start="2024-01-01")]}})
+    v = edgar.extraer_campo(f, "us-gaap", "beneficio_operativo", 10, URL, OBT)
+    assert [(p["fecha_dato"], p["valor"]) for p in v["serie"]] == [("2025-12-31", 900)]      # el respaldo no rellena 2024
+    assert v["concepto"] == "OperatingIncomeLoss"
+
+
 def test_deuda_con_el_concepto_que_incluye_arrendamientos_financieros():
     """Nucor dejó de usar LongTermDebt (2016) y LongTermDebtNoncurrent (2018): hoy reporta la deuda con otro concepto."""
     f = facts(

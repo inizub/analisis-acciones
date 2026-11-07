@@ -293,6 +293,12 @@ def test_el_juez_no_puede_sustituir_los_doce_meses_reportados_por_una_estimacion
     assert r["ajustes_aplicados"][0]["a"] == 1500.0
 
 
+def test_el_juez_tampoco_sustituye_los_ingresos_de_12_meses_solo_de_ingresos():
+    base = {**BASE, "base_ingresos": {"metodo": "ttm_ingresos", "fecha_fin": "2026-09-30"}}
+    with pytest.raises(ErrorMotor, match="doce meses reportados"):
+        escenarios.ejecutar(ANALISTA, {"base": base}, _ajuste_base(1000.0, 1500.0), cfg=cfg(1000))
+
+
 def test_el_juez_puede_ajustar_el_tipo_impositivo():
     aj = {"ticker": "XYZ", "fecha_analisis": "2026-11-06", "ajustes": [{
         "analista": "todos", "driver": "tasa_impuestos", "escenario": "todos", "valor_anterior": 0.25,

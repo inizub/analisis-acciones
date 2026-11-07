@@ -231,8 +231,11 @@ def _ttm_campo(dp: dict, campo: str) -> tuple[float | None, str, str]:
 def base_doce_meses(dp: dict, avisos: list[str], max_meses: float = 6.0) -> dict:
     """Ingresos y beneficio operativo de los últimos doce meses si hay trimestres posteriores al último ejercicio.
 
-    {"metodo": "ttm" | "anual", "fecha_fin", "ingresos", "beneficio_operativo", "desfase_meses"}. Si hay trimestres
-    más recientes pero no se pueden encadenar con datos con fuente, usa el último ejercicio y lo avisa.
+    {"metodo": "ttm" | "ttm_ingresos" | "anual", "fecha_fin", "ingresos", "beneficio_operativo", "desfase_meses"}.
+    - ttm: ingresos y beneficio operativo de los últimos doce meses.
+    - ttm_ingresos: solo se pueden encadenar los ingresos (p. ej. el emisor no publica resultado operativo trimestral);
+      el beneficio operativo es ingresos de 12 meses × el margen del último ejercicio (se avisa).
+    - anual: no hay trimestres encadenables con datos con fuente: se usa el último ejercicio y se avisa.
     """
     vals, motivos = {}, []
     for c in CAMPOS_TTM:
@@ -243,15 +246,24 @@ def base_doce_meses(dp: dict, avisos: list[str], max_meses: float = 6.0) -> dict
     anual_fin = str(_f(_serie(dp, "ingresos")[-1]["fecha_dato"])) if _serie(dp, "ingresos") else ""
     hay_nuevos = any(vals[c][1] and vals[c][1] != anual_fin for c in CAMPOS_TTM if vals[c][0] is not None)
     fecha_analisis = _f(dp["fecha_analisis"]) if dp.get("fecha_analisis") else None
+    trimestres_mas_recientes = any(
+        ((dp.get("trimestrales") or {}).get(c) or {}).get("serie") for c in CAMPOS_TTM)
+    ing_ttm, ing_fin = vals["ingresos"]
+    ebit_anual, ing_anual = _ultimo(dp, "beneficio_operativo"), _ultimo(dp, "ingresos")
     if motivos or vals["ingresos"][1] != vals["beneficio_operativo"][1]:
-        trimestres_mas_recientes = any(
-            ((dp.get("trimestrales") or {}).get(c) or {}).get("serie") for c in CAMPOS_TTM)
-        if trimestres_mas_recientes:
-            avisos.append("Base de ingresos anual: hay trimestres posteriores al último ejercicio pero no se pueden "
-                          "encadenar los últimos doce meses con datos con fuente (" + "; ".join(motivos or ["fechas distintas"]) + ")")
-        fin = anual_fin
-        res = {"metodo": "anual", "fecha_fin": fin, "ingresos": _ultimo(dp, "ingresos"),
-               "beneficio_operativo": _ultimo(dp, "beneficio_operativo")}
+        if ing_ttm is not None and ing_fin != anual_fin and ebit_anual is not None and ing_anual and ing_anual > 0:
+            fin = ing_fin
+            res = {"metodo": "ttm_ingresos", "fecha_fin": fin, "ingresos": ing_ttm,
+                   "beneficio_operativo": ing_ttm * ebit_anual / ing_anual}
+            avisos.append(f"Base de ingresos: últimos doce meses hasta {fin}; el beneficio operativo de ese periodo no se "
+                          "puede calcular con datos con fuente (" + "; ".join(motivos or ["fechas distintas"])
+                          + "): se mantiene el margen operativo del último ejercicio")
+        else:
+            if trimestres_mas_recientes:
+                avisos.append("Base de ingresos anual: hay trimestres posteriores al último ejercicio pero no se pueden "
+                              "encadenar los últimos doce meses con datos con fuente (" + "; ".join(motivos or ["fechas distintas"]) + ")")
+            fin = anual_fin
+            res = {"metodo": "anual", "fecha_fin": fin, "ingresos": ing_anual, "beneficio_operativo": ebit_anual}
     else:
         fin = vals["ingresos"][1]
         res = {"metodo": "ttm" if hay_nuevos else "anual", "fecha_fin": fin, "ingresos": vals["ingresos"][0],
@@ -259,7 +271,8 @@ def base_doce_meses(dp: dict, avisos: list[str], max_meses: float = 6.0) -> dict
         if hay_nuevos:
             avisos.append(f"Base de ingresos: últimos doce meses hasta {fin} (último ejercicio + trimestres posteriores)")
     res["desfase_meses"] = round((fecha_analisis - _f(fin)).days / 30.4, 1) if fecha_analisis and fin else None
-    if res["metodo"] == "anual" and res["desfase_meses"] is not None and res["desfase_meses"] > max_meses:
+    if (res["metodo"] == "anual" and not trimestres_mas_recientes
+            and res["desfase_meses"] is not None and res["desfase_meses"] > max_meses):
         avisos.append(f"Base de ingresos del último ejercicio ({fin}), de hace {res['desfase_meses']:.0f} meses y sin "
                       "trimestres posteriores: el valor puede quedarse corto si la empresa crece o se contrae")
     return res
@@ -322,8 +335,11 @@ def construir(dp: dict, router: dict, macro: dict, cfg: dict | None = None,
 def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos):
     mc = cfg["motor"]
     ing, ebit = _requerido(dp, "ingresos"), _requerido(dp, "beneficio_operativo")
+    if any("BeforeIncomeTaxes" in str(p.get("concepto", "")) for p in _serie(dp, "beneficio_operativo")):
+        avisos.append("Beneficio operativo aproximado: el emisor no publica resultado operativo; se calcula como resultado "
+                      "antes de impuestos + gasto por intereses − ingresos por intereses")
     b12 = base_doce_meses(dp, avisos, cfg["datos"]["base_max_meses"])
-    if b12["metodo"] == "ttm":
+    if b12["metodo"] in ("ttm", "ttm_ingresos"):
         ing, ebit = b12["ingresos"], b12["beneficio_operativo"]
     deuda, caja = _requerido(dp, "deuda_total"), _requerido(dp, "caja")
     beta_u = _sector(dp, "betas.beta_desapalancada_caja") or _sector(dp, "betas.beta_desapalancada")

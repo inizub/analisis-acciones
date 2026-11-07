@@ -199,7 +199,7 @@ def aplicar_ajustes_base(base: dict, ajustes: dict | None, encuadre: str) -> tup
         if aj["driver"] == "tasa_impuestos":
             exigir(aj["valor_nuevo"] < 0.6, f"ajuste {aj['objecion_ref']}: tasa_impuestos debe ser una fracción menor que 0,6")
         if aj["driver"] == "ingresos0":
-            exigir((b.get("base_ingresos") or {}).get("metodo") != "ttm",
+            exigir(not str((b.get("base_ingresos") or {}).get("metodo", "")).startswith("ttm"),
                    f"ajuste {aj['objecion_ref']}: la base de ingresos ya son los últimos doce meses reportados "
                    f"(hasta {(b.get('base_ingresos') or {}).get('fecha_fin')}); no se sustituye por estimaciones ni guidance")
         aplicados.append({"escenario": "todos", "driver": aj["driver"], "de": actual, "a": aj["valor_nuevo"],

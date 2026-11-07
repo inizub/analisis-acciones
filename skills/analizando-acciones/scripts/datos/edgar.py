@@ -42,6 +42,14 @@ CAMPOS: dict[str, dict[str, Any]] = {
         "ifrs-full": ["Revenue", "RevenueFromContractsWithCustomers"]},
     "beneficio_operativo": {"tipo": "flujo", "unidad": "moneda",
         "us-gaap": ["OperatingIncomeLoss"],
+        # Respaldo: solo si el emisor no tiene ningún resultado operativo en XBRL (p. ej. Nucor). Se calcula con partidas
+        # reportadas: resultado antes de impuestos + gasto por intereses − ingresos por intereses. Aproximado: el concepto
+        # de cada cifra lo deja a la vista y el motor lo avisa. Nunca se mezcla con OperatingIncomeLoss.
+        "respaldo": {"us-gaap": [
+            ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+             "?InterestExpense", "?-InvestmentIncomeInterest"),
+            ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+             "?InterestExpense", "?-InvestmentIncomeInterest")]},
         "ifrs-full": ["ProfitLossFromOperatingActivities"]},
     "beneficio_neto": {"tipo": "flujo", "unidad": "moneda",
         "us-gaap": ["NetIncomeLoss", "NetIncomeLossAvailableToCommonStockholdersBasic", "ProfitLoss"],
@@ -194,7 +202,7 @@ def _serie_candidato(facts: dict, tax: str, cand: Any, tipo: str) -> tuple[dict[
         s, u = hechos_anuales(facts, tax, cand, tipo)
         return s, u, cand
     # Prefijos: "?" opcional (0 si falta), "-" se resta (obligatorio).
-    partes = [(c.lstrip("?-"), c.startswith("?"), -1.0 if c.startswith("-") else 1.0) for c in cand]
+    partes = [(c.lstrip("?-"), c.startswith("?"), -1.0 if c.lstrip("?").startswith("-") else 1.0) for c in cand]
     nombre_comp = "".join(("-" if s < 0 else ("+" if i else "")) + n for i, (n, _, s) in enumerate(partes))
     series = {nombre: hechos_anuales(facts, tax, nombre, tipo) for nombre, _, _ in partes}
     obligatorias = [n for n, opc, _ in partes if not opc]
@@ -228,6 +236,11 @@ def extraer_campo(facts: dict, tax: str, campo: str, anios: int, url: str, obten
         serie, unidad, nombre = _serie_candidato(facts, tax, cand, spec["tipo"])
         if serie:
             candidatos.append((serie, unidad, nombre, orden))
+    if not candidatos:      # respaldo aproximado, solo si no hay ningún candidato principal
+        for orden, cand in enumerate((spec.get("respaldo") or {}).get(tax, [])):
+            serie, unidad, nombre = _serie_candidato(facts, tax, cand, spec["tipo"])
+            if serie:
+                candidatos.append((serie, unidad, nombre, orden))
     if not candidatos:
         return comun.desconocido("not_covered", f"Ningún concepto {tax} disponible para {campo}")
     # Principal: el candidato con el dato más reciente (a igualdad, el de mayor prioridad).
