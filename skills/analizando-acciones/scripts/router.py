@@ -8,6 +8,9 @@ Salida de `clasificar`: {ruta, motivo, confianza, requiere_confirmacion, metrica
 
 Prioridad de reglas (la primera que se cumple decide):
   fuera_de_alcance > banco_credito > biotech_precomercial > holding > crecimiento_perdidas > ciclica > general
+Salvedad (noviembre de 2026): entre crecimiento_perdidas, ciclica y general, una candidata de fuerza alta gana a una de
+fuerza media, y la prioridad solo desempata a igual fuerza. Ejemplo: NVDA o Freeport crecen algo por encima del p90 de su
+clase (crecimiento_perdidas, media) pero son cíclicas claras (alta): antes se les asignaba crecimiento_perdidas.
 
 Confianza:
   alta   regla clara y sin alternativas (o ruta general sin ninguna otra regla disparada y con datos completos)
@@ -35,6 +38,7 @@ from datos import damodaran  # noqa: E402
 PRIORIDAD = ["fuera_de_alcance", "banco_credito", "biotech_precomercial", "holding", "crecimiento_perdidas", "ciclica",
              "general"]
 EXCLUYENTES = {"fuera_de_alcance", "banco_credito", "biotech_precomercial"}
+RUTAS_DURAS = EXCLUYENTES | {"holding"}      # prioridad estricta; entre las demás, la fuerza manda sobre la prioridad
 METRICA_E4 = {"general": "crecimiento_ingresos", "crecimiento_perdidas": "crecimiento_ingresos",
               "ciclica": "crecimiento_ingresos", "banco_credito": "roe", "biotech_precomercial": "hito_clinico",
               "holding": "crecimiento_ingresos", "fuera_de_alcance": None}
@@ -195,7 +199,8 @@ def clasificar(dp: dict, cfg: dict | None = None, tabla=None) -> dict:
 
     # decisión
     orden = {ruta: i for i, ruta in enumerate(PRIORIDAD)}
-    candidatas.sort(key=lambda c: (orden[c["ruta"]], c["fuerza"] != "alta"))
+    candidatas.sort(key=lambda c: (0, orden[c["ruta"]], 0, 0) if c["ruta"] in RUTAS_DURAS
+                    else (1, 0, c["fuerza"] != "alta", orden[c["ruta"]]))
     if candidatas:
         elegida = candidatas[0]
         ruta, fuerza, motivo = elegida["ruta"], elegida["fuerza"], elegida["motivo"]
@@ -204,9 +209,13 @@ def clasificar(dp: dict, cfg: dict | None = None, tabla=None) -> dict:
     alternativas = sorted({c["ruta"] for c in candidatas if c["ruta"] != ruta})
     if ruta in EXCLUYENTES and fuerza == "alta":
         alternativas = []
-    if huecos or alternativas:
+    # Conflicto real: otra candidata de fuerza igual o mayor. Una alternativa más débil no obliga a consultar.
+    rivales = [c for c in candidatas if c["ruta"] != ruta and (c["fuerza"] == "alta" or fuerza == "media")]
+    if ruta in EXCLUYENTES and fuerza == "alta":
+        rivales = []
+    if huecos or rivales:
         confianza = "baja"
-    elif fuerza == "media":
+    elif fuerza == "media" or alternativas:
         confianza = "media"
     else:
         confianza = "alta"
