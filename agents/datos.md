@@ -21,7 +21,10 @@ En este orden de preferencia de fuente: filings en la SEC (10-K, 10-Q, 20-F, 6-K
 del emisor, comunicados de resultados y, por último, prensa financiera.
 
 1. Los campos de la lista que te pasan, empezando por los críticos.
-2. Últimos datos trimestrales (sobre todo en emisores con 20-F): ingresos, beneficio operativo, beneficio neto.
+2. Últimos datos trimestrales (sobre todo en emisores con 20-F): ingresos, beneficio operativo, beneficio neto. Si
+   hay trimestres posteriores al último ejercicio anual del datapack, incluye **todos** los trimestres posteriores
+   (sin saltar ninguno, con `periodo_inicio` y `fecha_dato`) **y los mismos trimestres del año anterior**: con ellos
+   el código calcula los últimos doce meses. Sin los comparables, la valoración usa el último ejercicio.
 3. Guidance vigente de la empresa.
 4. Ingresos por segmento de negocio y por geografía o moneda.
 5. Cambios de auditor, opinión de auditoría, cambios de políticas contables y factores de riesgo nuevos.

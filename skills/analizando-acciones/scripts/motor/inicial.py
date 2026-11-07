@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 
@@ -188,6 +189,79 @@ def roc_historico(dp: dict, t: float) -> float | None:
     return sum(rocs) / len(rocs) if rocs else None
 
 
+# ---------------------------------------------------------------- base de últimos doce meses
+
+TOL_DIAS = 20          # tolerancia al emparejar fechas de cierre de trimestres
+CAMPOS_TTM = ("ingresos", "beneficio_operativo")
+
+
+def _f(x: str) -> date:
+    return date.fromisoformat(str(x)[:10])
+
+
+def _ttm_campo(dp: dict, campo: str) -> tuple[float | None, str, str]:
+    """Últimos doce meses de un campo = último ejercicio + trimestres posteriores − sus comparables del año anterior.
+
+    Devuelve (valor, fecha_fin, motivo). `valor` es None si no se puede calcular con datos con fuente (nunca se
+    estima): trimestres no contiguos con el cierre anual, sin `periodo_inicio` o sin el comparable del año anterior.
+    Sin trimestres posteriores al último ejercicio, el valor es el propio ejercicio.
+    """
+    anual = _serie(dp, campo)
+    if not anual:
+        return None, "", f"sin serie anual de {campo}"
+    fin = _f(anual[-1]["fecha_dato"])
+    t = ((dp.get("trimestrales") or {}).get(campo)) or {}
+    trim = [] if comun.es_desconocido(t) else sorted(t.get("serie") or [], key=lambda x: x["fecha_dato"])
+    nuevos = [q for q in trim if (_f(q["fecha_dato"]) - fin).days > TOL_DIAS]
+    if not nuevos:
+        return anual[-1]["valor"], str(fin), ""
+    esperado, suma_nuevos, suma_previos = fin, 0.0, 0.0
+    for q in nuevos:
+        if not q.get("periodo_inicio") or abs((_f(q["periodo_inicio"]) - esperado).days) > TOL_DIAS + 1:
+            return None, "", f"los trimestres de {campo} posteriores al ejercicio no son contiguos con su cierre"
+        previo = next((p for p in trim if abs((_f(q["fecha_dato"]) - _f(p["fecha_dato"])).days - 365) <= TOL_DIAS), None)
+        if previo is None:
+            return None, "", f"falta el trimestre del año anterior a {q['fecha_dato']} en {campo}"
+        suma_nuevos += q["valor"]
+        suma_previos += previo["valor"]
+        esperado = _f(q["fecha_dato"])
+    return anual[-1]["valor"] + suma_nuevos - suma_previos, str(esperado), ""
+
+
+def base_doce_meses(dp: dict, avisos: list[str]) -> dict:
+    """Ingresos y beneficio operativo de los últimos doce meses si hay trimestres posteriores al último ejercicio.
+
+    {"metodo": "ttm" | "anual", "fecha_fin", "ingresos", "beneficio_operativo", "desfase_meses"}. Si hay trimestres
+    más recientes pero no se pueden encadenar con datos con fuente, usa el último ejercicio y lo avisa.
+    """
+    vals, motivos = {}, []
+    for c in CAMPOS_TTM:
+        v, fin, motivo = _ttm_campo(dp, c)
+        if v is None:
+            motivos.append(motivo)
+        vals[c] = (v, fin)
+    anual_fin = str(_f(_serie(dp, "ingresos")[-1]["fecha_dato"])) if _serie(dp, "ingresos") else ""
+    hay_nuevos = any(vals[c][1] and vals[c][1] != anual_fin for c in CAMPOS_TTM if vals[c][0] is not None)
+    fecha_analisis = _f(dp["fecha_analisis"]) if dp.get("fecha_analisis") else None
+    if motivos or vals["ingresos"][1] != vals["beneficio_operativo"][1]:
+        trimestres_mas_recientes = any(
+            ((dp.get("trimestrales") or {}).get(c) or {}).get("serie") for c in CAMPOS_TTM)
+        if trimestres_mas_recientes:
+            avisos.append("Base de ingresos anual: hay trimestres posteriores al último ejercicio pero no se pueden "
+                          "encadenar los últimos doce meses con datos con fuente (" + "; ".join(motivos or ["fechas distintas"]) + ")")
+        fin = anual_fin
+        res = {"metodo": "anual", "fecha_fin": fin, "ingresos": _ultimo(dp, "ingresos"),
+               "beneficio_operativo": _ultimo(dp, "beneficio_operativo")}
+    else:
+        fin = vals["ingresos"][1]
+        res = {"metodo": "ttm" if hay_nuevos else "anual", "fecha_fin": fin, "ingresos": vals["ingresos"][0],
+               "beneficio_operativo": vals["beneficio_operativo"][0]}
+        if hay_nuevos:
+            avisos.append(f"Base de ingresos: últimos doce meses hasta {fin} (último ejercicio + trimestres posteriores)")
+    res["desfase_meses"] = round((fecha_analisis - _f(fin)).days / 30.4, 1) if fecha_analisis and fin else None
+    return res
+
+
 # ---------------------------------------------------------------- construcción
 
 def construir(dp: dict, router: dict, macro: dict, cfg: dict | None = None,
@@ -245,6 +319,9 @@ def construir(dp: dict, router: dict, macro: dict, cfg: dict | None = None,
 def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos):
     mc = cfg["motor"]
     ing, ebit = _requerido(dp, "ingresos"), _requerido(dp, "beneficio_operativo")
+    b12 = base_doce_meses(dp, avisos)
+    if b12["metodo"] == "ttm":
+        ing, ebit = b12["ingresos"], b12["beneficio_operativo"]
     deuda, caja = _requerido(dp, "deuda_total"), _requerido(dp, "caja")
     beta_u = _sector(dp, "betas.beta_desapalancada_caja") or _sector(dp, "betas.beta_desapalancada")
     exigir(beta_u is not None, "sin beta desapalancada sectorial")
@@ -264,7 +341,7 @@ def _base_dcf(dp, comunes, cfg, rf, erp, crp, t, g_term, cap, supuestos, avisos)
         crec = ((dp.get("tasas_base") or {}).get("para_reverse_dcf") or {}).get("crecimiento_ingresos", {}).get("media")
     exigir(crec is not None, "sin crecimiento de referencia para el caso mecánico")
     base = {**comunes, "ingresos0": ing, "tasa_impuestos": t, "wacc": w["wacc"], "rf": rf, "g_terminal": g_term,
-            "deuda": deuda, "caja": caja, "ventas_capital": ventas_capital(dp, cfg, avisos),
+            "base_ingresos": b12, "deuda": deuda, "caja": caja, "ventas_capital": ventas_capital(dp, cfg, avisos),
             # El DCF inverso mantiene el margen actual: describe lo que descuenta el precio sin añadir la reversión
             # a la media del caso mecánico. El caso mecánico usa el margen encogido (mec más abajo).
             "margen_operativo": margen0, "margen_inicial": margen0,

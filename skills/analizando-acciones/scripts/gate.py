@@ -1,4 +1,4 @@
-"""Checklist de 11 puntos (A6.7). Cualquier fallo → no_analizable, con la lista de fallos.
+"""Checklist de 12 puntos (A6.7 + cordura del modelo). Cualquier fallo → no_analizable, con la lista de fallos.
 
 Uso CLI:
     python gate.py --dir RUN_DIR --modo completo|rapido|degradado [--fase previo|final] [--salida gate.json]
@@ -6,7 +6,7 @@ Uso CLI:
 Fases:
   previo  con el datapack y el router (puntos 1, 2, 3 y 11): permite cerrar un análisis imposible antes de
           gastar tokens en los analistas.
-  final   los 11 puntos. Los puntos que dependen de salidas que no existen cuentan como fallo.
+  final   los 12 puntos. Los puntos que dependen de salidas que no existen cuentan como fallo.
 Si la ruta es fuera_de_alcance, el único fallo que se informa es el 3.
 
 Archivos de RUN_DIR: datapack.json (o datapack_base.json), router.json, motor_inicial.json, analista_<X>.json,
@@ -35,6 +35,7 @@ NOMBRES = {
     9: "Ninguna bandera forense invalidante",
     10: "El balance sobrevive al escenario bajista",
     11: "Datos de precio recientes",
+    12: "Cordura del modelo: el precio encaja con el rango de valores de los escenarios",
 }
 ESTADOS_DISCREPANCIA_OK = {"ok", "discrepancia_resuelta_edgar", "sin_comparar"}
 
@@ -256,6 +257,17 @@ def punto_11(dp: dict, cfg: dict) -> dict:
     return _ok(f"{dias} días") if dias <= maximo else _fallo(f"precio de hace {dias} días (máximo {maximo})")
 
 
+def punto_12(escenarios: dict[str, dict | None], esperados: list[str]) -> dict:
+    """El precio no puede quedar muy fuera del rango de valores de los escenarios (ver escenarios.cordura)."""
+    mal = [f"analista {n}: {e['cordura']['motivo']}" for n in esperados
+           if (e := escenarios.get(n)) and (e.get("cordura") or {}).get("fiable") is False]
+    if mal:
+        return _fallo("modelo no fiable: " + " | ".join(mal))
+    if not any((escenarios.get(n) or {}).get("cordura") for n in esperados):
+        return _no_evaluado("los escenarios no incluyen la comprobación de cordura")
+    return _ok("el precio encaja con el rango de valores de los escenarios")
+
+
 # ---------------------------------------------------------------- evaluación
 
 def evaluar(dp: dict, router: dict, modo: str, fase: str = "final", motor: dict | None = None,
@@ -274,7 +286,7 @@ def evaluar(dp: dict, router: dict, modo: str, fase: str = "final", motor: dict 
         items[3] = punto_3(router)
         items[11] = punto_11(dp, cfg)
         if fase == "previo":
-            for n in (4, 5, 6, 7, 8, 9, 10):
+            for n in (4, 5, 6, 7, 8, 9, 10, 12):
                 items[n] = _no_evaluado("fase previa")
         else:
             items[4] = punto_4(analistas, esperados)
@@ -284,6 +296,7 @@ def evaluar(dp: dict, router: dict, modo: str, fase: str = "final", motor: dict 
             items[8] = punto_8(sintesis, modo)
             items[9] = punto_9(forense)
             items[10] = punto_10(dp, router["ruta"], motor, escenarios, cfg)
+            items[12] = punto_12(escenarios, esperados)
     fallos = [f"{n}. {NOMBRES[n]}: {r['detalle']}" for n, r in sorted(items.items()) if r["estado"] == "fallo"]
     avisos = [a for r in items.values() for a in ([r["aviso"]] if r.get("aviso") else []) + r.get("avisos", [])]
     return {"ticker": dp.get("ticker"), "modo": modo, "fase": fase, "ruta": router["ruta"], "pasa": not fallos,
@@ -314,7 +327,7 @@ def cargar(directorio: Path, modo: str) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Checklist de 11 puntos.")
+    p = argparse.ArgumentParser(description="Checklist de 12 puntos.")
     p.add_argument("--dir", required=True)
     p.add_argument("--modo", required=True, choices=comun.MODOS)
     p.add_argument("--fase", choices=["previo", "final"], default="final")

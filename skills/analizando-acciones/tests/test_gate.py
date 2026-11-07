@@ -21,11 +21,11 @@ def fallos(r):
     return {int(n) for n, i in r["items"].items() if i["estado"] == "fallo"}
 
 
-def test_ejecucion_sana_pasa_los_11_puntos():
+def test_ejecucion_sana_pasa_los_12_puntos():
     r = evaluar()
     assert r["pasa"] and r["fallos"] == []
     assert fallos(r) == set()
-    assert r["items"]["8"]["estado"] == "ok" and len(r["items"]) == 11
+    assert r["items"]["8"]["estado"] == "ok" and len(r["items"]) == 12
     assert r["items"]["1"]["detalle"].startswith("10 campos")
 
 
@@ -217,7 +217,7 @@ def test_fase_previa_evalua_solo_1_2_3_y_11():
     art = run("completo", dp=dp_completo(antiguedad=9))
     r = gate.evaluar(art["dp"], art["router"], "completo", "previo")
     assert fallos(r) == {11}
-    assert {n for n, i in r["items"].items() if i["estado"] == "no_evaluado"} == {"4", "5", "6", "7", "8", "9", "10"}
+    assert {n for n, i in r["items"].items() if i["estado"] == "no_evaluado"} == {"4", "5", "6", "7", "8", "9", "10", "12"}
 
 
 def test_cli(tmp_path):
@@ -247,3 +247,22 @@ def test_capital_bancario_cet1_o_capital_total():
     assert gate.capital_bancario(dp)["tipo"] == "CET1"                         # CET1 tiene prioridad
     dp["banca"]["cet1"] = comun.desconocido("not_covered")
     assert gate.capital_bancario(dp)["tipo"] == "capital total"
+
+
+# ---------------------------------------------------------------- 12: cordura del modelo
+
+def test_modelo_no_fiable_falla_el_checklist_con_el_motivo():
+    esc = escenarios("A")
+    esc["cordura"] = {"fiable": False, "motivo": "incluso el escenario más alto vale 0,25 veces el precio"}
+    art = run("rapido", escenarios={"N": {**esc, "analista": "N"}})
+    r = gate.evaluar(art["dp"], art["router"], "rapido", "final", art["motor"], art["analistas"], art["escenarios"],
+                     art["forense"], art["sintesis"])
+    assert not r["pasa"] and fallos(r) == {12}
+    assert "modelo no fiable" in r["fallos"][0] and "0,25 veces el precio" in r["fallos"][0]
+
+
+def test_cordura_fiable_o_sin_dato_no_falla():
+    esc = escenarios("A")
+    assert gate.punto_12({"A": esc}, ["A"])["estado"] == "no_evaluado"
+    esc["cordura"] = {"fiable": True, "motivo": ""}
+    assert gate.punto_12({"A": esc}, ["A"])["estado"] == "ok"

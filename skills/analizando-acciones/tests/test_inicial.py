@@ -238,3 +238,63 @@ def test_roic_terminal_solo_con_moat_documentado():
     r = escenarios.ejecutar(sin_moat, m, cfg=cfg)
     assert "ignorado" in r["escenarios"][1]["drivers_usados"]["roic_terminal"]
     assert con["escenarios"][1]["valor"] > r["escenarios"][1]["valor"]       # menos reinversión terminal
+
+
+# ---------------------------------------------------------------- base de últimos doce meses
+
+def _trim(valores_por_fecha, campo="ingresos"):
+    """Serie trimestral: {(inicio, fin): valor}."""
+    serie = []
+    for (ini, fin), v in valores_por_fecha.items():
+        c = cifra(v, "unidades", "USD", f=fin)
+        c["periodo_inicio"] = ini
+        serie.append(c)
+    return {"concepto": f"{campo} trimestral", "serie": serie}
+
+
+def _dp_con_trimestres(completos=True):
+    """Ejercicio anual cerrado en 2025-12-31 (el último de dp_completo usa fecha_dato 2026-11-05: se reasigna)."""
+    dp = dp_completo()
+    for c in ("ingresos", "beneficio_operativo"):
+        dp["fundamentales"][c]["serie"][-1]["fecha_dato"] = "2025-12-31"
+    anual_ing = dp["fundamentales"]["ingresos"]["serie"][-1]["valor"]
+    anual_ebit = dp["fundamentales"]["beneficio_operativo"]["serie"][-1]["valor"]
+    q = {("2026-01-01", "2026-03-31"): anual_ing * 0.30, ("2026-04-01", "2026-06-30"): anual_ing * 0.35}
+    prev = {("2025-04-01", "2025-06-30"): anual_ing * 0.20}
+    if completos:
+        prev[("2025-01-01", "2025-03-31")] = anual_ing * 0.18
+    dp["trimestrales"] = {"ingresos": _trim({**prev, **q}),
+                          "beneficio_operativo": _trim({k: v * (anual_ebit / anual_ing) for k, v in {**prev, **q}.items()})}
+    dp["tasas_base"] = tasas_base.construir(dp)
+    return dp, anual_ing, anual_ebit
+
+
+def test_base_doce_meses_con_trimestres_posteriores():
+    dp, anual, anual_ebit = _dp_con_trimestres()
+    m = construir(dp)
+    esperado = anual + (0.30 + 0.35 - 0.18 - 0.20) * anual
+    assert m["base"]["ingresos0"] == pytest.approx(esperado)
+    assert m["base"]["margen_inicial"] == pytest.approx(anual_ebit / anual)      # mismo margen en ambos
+    assert m["base"]["base_ingresos"]["metodo"] == "ttm" and m["base"]["base_ingresos"]["fecha_fin"] == "2026-06-30"
+    assert any("últimos doce meses hasta 2026-06-30" in a for a in m["supuestos"]["avisos"])
+
+
+def test_sin_comparable_del_ano_anterior_usa_el_ejercicio_y_lo_avisa():
+    dp, anual, _ = _dp_con_trimestres(completos=False)
+    m = construir(dp)
+    assert m["base"]["ingresos0"] == pytest.approx(anual) and m["base"]["base_ingresos"]["metodo"] == "anual"
+    assert any("Base de ingresos anual" in a and "falta el trimestre del año anterior" in a for a in m["supuestos"]["avisos"])
+
+
+def test_trimestres_no_contiguos_no_se_encadenan():
+    dp, anual, _ = _dp_con_trimestres()
+    for c in ("ingresos", "beneficio_operativo"):
+        dp["trimestrales"][c]["serie"] = [q for q in dp["trimestrales"][c]["serie"] if q["fecha_dato"] != "2026-03-31"]
+    m = construir(dp)
+    assert m["base"]["base_ingresos"]["metodo"] == "anual" and any("no son contiguos" in a for a in m["supuestos"]["avisos"])
+
+
+def test_sin_trimestres_la_base_es_anual_sin_avisos_nuevos():
+    m = construir()
+    assert m["base"]["base_ingresos"]["metodo"] == "anual"
+    assert not any("Base de ingresos" in a for a in m["supuestos"]["avisos"])

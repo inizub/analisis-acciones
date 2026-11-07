@@ -156,3 +156,44 @@ def test_roe_estable_solo_con_moat_documentado():
     con_moat = escenarios.valorar("banco_credito", dict(base, moat_documentado=True), drivers)
     assert con_moat["drivers_usados"]["roe_estable"] == pytest.approx(0.14)
     assert con_moat["valor"] > sin_moat["valor"]
+
+
+# ---------------------------------------------------------------- ajustes de la base y cordura
+
+def _ajuste_base(valor_anterior, valor_nuevo, escenario="todos", analista="todos"):
+    return {"ticker": "XYZ", "fecha_analisis": "2026-11-06", "ajustes": [{
+        "analista": analista, "driver": "ingresos0", "escenario": escenario, "valor_anterior": valor_anterior,
+        "valor_nuevo": valor_nuevo, "objecion_ref": "O1", "motivo": "La base debe ser de los últimos doce meses"}]}
+
+
+def test_el_juez_puede_ajustar_ingresos0_de_la_base():
+    sin = escenarios.ejecutar(ANALISTA, {"base": BASE}, cfg=cfg(20_000))
+    con = escenarios.ejecutar(ANALISTA, {"base": BASE}, _ajuste_base(1000.0, 2000.0), cfg=cfg(20_000))
+    assert con["ajustes_aplicados"] == [{"escenario": "todos", "driver": "ingresos0", "de": 1000.0, "a": 2000.0,
+                                         "objecion_ref": "O1"}]
+    assert all(c["valor"] > s["valor"] for c, s in zip(con["escenarios"], sin["escenarios"]))
+
+
+def test_ajuste_de_la_base_valida_valor_anterior_y_escenario():
+    with pytest.raises(ErrorMotor, match="valor_anterior"):
+        escenarios.ejecutar(ANALISTA, {"base": BASE}, _ajuste_base(999.0, 2000.0), cfg=cfg(1000))
+    with pytest.raises(ErrorMotor, match="solo admite escenario 'todos'"):
+        escenarios.ejecutar(ANALISTA, {"base": BASE}, _ajuste_base(1000.0, 2000.0, escenario="base"), cfg=cfg(1000))
+    with pytest.raises(ErrorMotor, match="positivo"):
+        escenarios.ejecutar(ANALISTA, {"base": BASE}, _ajuste_base(1000.0, -5.0), cfg=cfg(1000))
+
+
+def test_cordura_fiable_si_el_precio_esta_en_el_rango():
+    r = escenarios.ejecutar(ANALISTA, {"base": BASE}, cfg=cfg(5_000))
+    assert r["cordura"]["fiable"] is True and r["cordura"]["motivo"] == ""
+
+
+def test_cordura_no_fiable_si_todos_los_escenarios_valen_muy_poco_o_muchisimo():
+    c = cfg(5_000)
+    barato = escenarios.ejecutar(ANALISTA, {"base": {**BASE, "precio0": 4000.0}}, cfg=c)     # precio ≫ valores
+    assert barato["cordura"]["fiable"] is False and "más alto vale" in barato["cordura"]["motivo"]
+    caro = escenarios.ejecutar(ANALISTA, {"base": {**BASE, "precio0": 0.5}}, cfg=c)           # valores ≫ precio
+    assert caro["cordura"]["fiable"] is False and "más bajo vale" in caro["cordura"]["motivo"]
+    # el umbral sale de config.yaml
+    c["cordura"]["factor_precio_fuera_de_rango"] = 1e6
+    assert escenarios.ejecutar(ANALISTA, {"base": {**BASE, "precio0": 4000.0}}, cfg=c)["cordura"]["fiable"] is True

@@ -147,7 +147,7 @@ def aplicar_ajustes(analista: dict, ajustes: dict | None) -> tuple[dict, list[di
     a = copy.deepcopy(analista)
     aplicados = []
     for aj in (ajustes or {}).get("ajustes", []):
-        if aj["analista"] not in (a["encuadre"], "todos"):
+        if aj["analista"] not in (a["encuadre"], "todos") or aj["driver"] in AJUSTES_BASE:
             continue
         for esc in a["escenarios"]:
             if aj["escenario"] not in (esc["nombre"], "todos"):
@@ -162,6 +162,46 @@ def aplicar_ajustes(analista: dict, ajustes: dict | None) -> tuple[dict, list[di
                               "a": aj["valor_nuevo"], "objecion_ref": aj["objecion_ref"]})
             d["valor"] = aj["valor_nuevo"]
     return a, aplicados
+
+
+AJUSTES_BASE = ("ingresos0",)   # inputs de la base (no de un escenario) que el juez puede corregir
+
+
+def aplicar_ajustes_base(base: dict, ajustes: dict | None, encuadre: str) -> tuple[dict, list[dict]]:
+    """Copia de `base` con los ajustes de inputs de la base (p. ej. ingresos0). Valen para todos los escenarios."""
+    b = dict(base)
+    aplicados = []
+    for aj in (ajustes or {}).get("ajustes", []):
+        if aj["driver"] not in AJUSTES_BASE or aj["analista"] not in (encuadre, "todos"):
+            continue
+        exigir(aj["escenario"] == "todos", f"ajuste {aj['objecion_ref']}: '{aj['driver']}' es de la base y solo admite escenario 'todos'")
+        actual = b.get(aj["driver"])
+        exigir(actual is not None, f"ajuste {aj['objecion_ref']}: la base no tiene '{aj['driver']}'")
+        if aj["valor_anterior"] is not None:
+            exigir(math.isclose(actual, aj["valor_anterior"], rel_tol=1e-9),
+                   f"ajuste {aj['objecion_ref']}: valor_anterior {aj['valor_anterior']} ≠ {actual} (base.{aj['driver']})")
+        exigir(isinstance(aj["valor_nuevo"], (int, float)) and aj["valor_nuevo"] > 0,
+               f"ajuste {aj['objecion_ref']}: el valor nuevo de '{aj['driver']}' debe ser un número positivo")
+        aplicados.append({"escenario": "todos", "driver": aj["driver"], "de": actual, "a": aj["valor_nuevo"],
+                          "objecion_ref": aj["objecion_ref"]})
+        b[aj["driver"]] = aj["valor_nuevo"]
+    return b, aplicados
+
+
+def cordura(rel: np.ndarray, cfg: dict) -> dict:
+    """¿Encaja el precio con el rango de valores de los escenarios? Fuera de factor× por encima o por debajo → no fiable."""
+    f = cfg["cordura"]["factor_precio_fuera_de_rango"]
+    mx, mn = float(np.max(rel)), float(np.min(rel))
+    if mx * f < 1:
+        motivo = (f"incluso el escenario más alto vale {mx:.2f} veces el precio (el precio es {1 / mx:.1f} veces ese valor; "
+                  f"límite {f:g}): revisa la base de ingresos y los supuestos antes de fiarte de las probabilidades")
+    elif mn > f:
+        motivo = (f"incluso el escenario más bajo vale {mn:.2f} veces el precio (límite {f:g}): "
+                  f"revisa la base de ingresos y los supuestos antes de fiarte de las probabilidades")
+    else:
+        motivo = ""
+    return {"fiable": not motivo, "motivo": motivo, "valor_max_sobre_p0": mx, "valor_min_sobre_p0": mn,
+            "factor": f}
 
 
 def _ruido_t(rng: np.random.Generator, nu: float, size: Any) -> np.ndarray:
@@ -210,6 +250,8 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     exigir(ruta == base.get("ruta", ruta) or base.get("permitir_ruta_distinta", False),
            f"la ruta del analista ({ruta}) no coincide con la del motor ({base.get('ruta')})")
     a, aplicados = aplicar_ajustes(analista, ajustes)
+    base, aplicados_base = aplicar_ajustes_base(base, ajustes, a["encuadre"])
+    aplicados += aplicados_base
     p0 = base["precio0"]
     exigir(p0 > 0, "precio0 debe ser positivo")
     escenarios = []
@@ -235,7 +277,7 @@ def ejecutar(analista: dict, motor: dict, ajustes: dict | None = None, cfg: dict
     return {
         "ticker": a["ticker"], "fecha_analisis": a["fecha_analisis"], "analista": a["encuadre"], "ruta": ruta,
         "metodo": METODO_POR_RUTA[ruta], "precio0": p0, "escenarios": escenarios, "probabilidades": probabilidades,
-        "rel_12m_p5_p50_p95": sim["rel_12m_p5_p50_p95"],
+        "rel_12m_p5_p50_p95": sim["rel_12m_p5_p50_p95"], "cordura": cordura(rel, cfg),
         "exceso_anual_esperado_pp": 100 * (esperada - r_vw),
         "rentabilidad_anual_esperada": esperada,
         "perdida_escenario_bajista": max(0.0, 1 - bajista["valor_sobre_p0"]),
