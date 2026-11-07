@@ -197,3 +197,47 @@ def test_cordura_no_fiable_si_todos_los_escenarios_valen_muy_poco_o_muchisimo():
     # el umbral sale de config.yaml
     c["cordura"]["factor_precio_fuera_de_rango"] = 1e6
     assert escenarios.ejecutar(ANALISTA, {"base": {**BASE, "precio0": 4000.0}}, cfg=c)["cordura"]["fiable"] is True
+
+
+# ---------------------------------------------------------------- cíclica con crecimiento
+
+BASE_CICLICA = {**BASE, "ruta": "ciclica", "roc": 0.15, "margen_inicial": 0.60, "anios_convergencia_margen": 5,
+                "margen_operativo": 0.38}
+
+
+def test_ciclica_sin_crecimiento_usa_el_modo_estable_y_con_crecimiento_el_dcf_de_10_anios():
+    estable = escenarios.valorar("ciclica", BASE_CICLICA, {"margen_operativo": {"valor": 0.38}})
+    crece = escenarios.valorar("ciclica", BASE_CICLICA, {"margen_operativo": {"valor": 0.38},
+                                                         "crecimiento_ingresos": {"valor": 0.25}})
+    assert estable["metodo"] == "dcf_normalizado" and "nota" not in estable["drivers_usados"]
+    assert "dcf de 10 años" in crece["drivers_usados"]["nota"]
+    assert crece["valor"] > 2 * estable["valor"]            # 5 años de +25 % pesan mucho frente a ingresos planos
+
+
+def test_ciclica_con_crecimiento_respeta_margen_y_crecimiento():
+    d = {"margen_operativo": {"valor": 0.38}}
+    v = lambda g, m: escenarios.valorar("ciclica", BASE_CICLICA, {"margen_operativo": {"valor": m},
+                                                                 "crecimiento_ingresos": {"valor": g}})["valor"]
+    assert v(0.10, 0.38) < v(0.25, 0.38) and v(0.25, 0.30) < v(0.25, 0.50)
+
+
+def test_el_juez_no_puede_sustituir_los_doce_meses_reportados_por_una_estimacion():
+    base = {**BASE, "base_ingresos": {"metodo": "ttm", "fecha_fin": "2026-07-26"}}
+    with pytest.raises(ErrorMotor, match="doce meses reportados"):
+        escenarios.ejecutar(ANALISTA, {"base": base}, _ajuste_base(1000.0, 1500.0), cfg=cfg(1000))
+    base["base_ingresos"]["metodo"] = "anual"
+    r = escenarios.ejecutar(ANALISTA, {"base": base}, _ajuste_base(1000.0, 1500.0), cfg=cfg(1000))
+    assert r["ajustes_aplicados"][0]["a"] == 1500.0
+
+
+def test_el_juez_puede_ajustar_el_tipo_impositivo():
+    aj = {"ticker": "XYZ", "fecha_analisis": "2026-11-06", "ajustes": [{
+        "analista": "todos", "driver": "tasa_impuestos", "escenario": "todos", "valor_anterior": 0.25,
+        "valor_nuevo": 0.17, "objecion_ref": "O4", "motivo": "El guidance de la empresa fija un tipo del 16-18 %"}]}
+    sin = escenarios.ejecutar(ANALISTA, {"base": BASE}, cfg=cfg(1000))
+    con = escenarios.ejecutar(ANALISTA, {"base": BASE}, aj, cfg=cfg(1000))
+    assert con["ajustes_aplicados"][0]["driver"] == "tasa_impuestos"
+    assert all(c["valor"] > s["valor"] for c, s in zip(con["escenarios"], sin["escenarios"]))
+    aj["ajustes"][0]["valor_nuevo"] = 17
+    with pytest.raises(ErrorMotor, match="fracción"):
+        escenarios.ejecutar(ANALISTA, {"base": BASE}, aj, cfg=cfg(1000))

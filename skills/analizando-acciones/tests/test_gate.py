@@ -266,3 +266,18 @@ def test_cordura_fiable_o_sin_dato_no_falla():
     assert gate.punto_12({"A": esc}, ["A"])["estado"] == "no_evaluado"
     esc["cordura"] = {"fiable": True, "motivo": ""}
     assert gate.punto_12({"A": esc}, ["A"])["estado"] == "ok"
+
+
+def test_cierre_anticipado_por_modelo_no_fiable_no_cuenta_la_falta_de_sintesis_como_fallo():
+    esc = {n: {**escenarios(n), "cordura": {"fiable": False, "motivo": "valores muy por debajo del precio"}}
+           for n in ("A", "B")}
+    art = run("completo", escenarios=esc)
+    r = gate.evaluar(art["dp"], art["router"], "completo", "final", art["motor"], art["analistas"], esc,
+                     art["forense"], None)
+    assert fallos(r) == {12}
+    assert r["items"]["7"]["estado"] == "no_evaluado" and r["items"]["8"]["estado"] == "no_evaluado"
+    # con modelo fiable y sin síntesis, la falta de síntesis sigue siendo un fallo
+    sana = {n: {**escenarios(n), "cordura": {"fiable": True, "motivo": ""}} for n in ("A", "B")}
+    r2 = gate.evaluar(art["dp"], art["router"], "completo", "final", art["motor"], art["analistas"], sana,
+                      art["forense"], None)
+    assert {7, 8} <= fallos(r2)

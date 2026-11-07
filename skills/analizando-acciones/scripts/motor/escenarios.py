@@ -22,7 +22,8 @@ motor_inicial.json → clave "base":
 Drivers por ruta (analista.escenarios[i].drivers.<nombre>.valor):
   general: crecimiento_ingresos, margen_operativo, [ventas_capital, roic_terminal (solo con moat documentado)]
   crecimiento_perdidas: los de general + [probabilidad_fracaso, valor_fracaso_por_accion]
-  ciclica: margen_operativo (normalizado), [crecimiento_estable]
+  ciclica: margen_operativo (normalizado), [crecimiento_estable] o [crecimiento_ingresos] (DCF de 10 años con
+      convergencia del margen; si lo da, crecimiento_estable no se usa)
   banco_credito: roe, [payout, roe_estable]
   biotech_precomercial: [factor_ventas_pico, factor_probabilidad]
   holding: [factor_multiplos]
@@ -90,6 +91,18 @@ def valorar(ruta: str, base: dict, drivers: dict) -> dict:
             exigir(0 <= pf <= 1, "probabilidad_fracaso fuera de [0, 1]")
             valor = (1 - pf) * valor + pf * vf
             usados.update(probabilidad_fracaso=pf, valor_fracaso_por_accion=vf)
+    elif ruta == "ciclica" and "crecimiento_ingresos" in drivers:
+        # Cíclica que crece mucho: DCF de 10 años; el margen converge del actual al normalizado del analista.
+        args = {k: v for k, v in base.items() if k in CLAVES_DCF}
+        g = _v(drivers, "crecimiento_ingresos")
+        if isinstance(g, (int, float)):
+            g = crecimiento_con_desvanecimiento(g, base["g_terminal"])
+        m = _v(drivers, "margen_operativo", base.get("margen_operativo"))
+        args["ventas_capital"] = base["ventas_capital"]
+        r = dcf_fcff(crecimiento=g, margen_operativo=m, **args)
+        valor = r["valor_por_accion"]
+        usados.update(crecimiento_ingresos=g, margen_operativo=m, ventas_capital=args["ventas_capital"],
+                      nota="dcf de 10 años con convergencia del margen (la ruta cíclica recibió crecimiento_ingresos)")
     elif ruta == "ciclica":
         m = _v(drivers, "margen_operativo", base.get("margen_operativo"))
         g = _v(drivers, "crecimiento_estable", base["g_terminal"])
@@ -164,7 +177,7 @@ def aplicar_ajustes(analista: dict, ajustes: dict | None) -> tuple[dict, list[di
     return a, aplicados
 
 
-AJUSTES_BASE = ("ingresos0",)   # inputs de la base (no de un escenario) que el juez puede corregir
+AJUSTES_BASE = ("ingresos0", "tasa_impuestos")   # inputs de la base (no de un escenario) que el juez puede corregir
 
 
 def aplicar_ajustes_base(base: dict, ajustes: dict | None, encuadre: str) -> tuple[dict, list[dict]]:
@@ -182,6 +195,12 @@ def aplicar_ajustes_base(base: dict, ajustes: dict | None, encuadre: str) -> tup
                    f"ajuste {aj['objecion_ref']}: valor_anterior {aj['valor_anterior']} ≠ {actual} (base.{aj['driver']})")
         exigir(isinstance(aj["valor_nuevo"], (int, float)) and aj["valor_nuevo"] > 0,
                f"ajuste {aj['objecion_ref']}: el valor nuevo de '{aj['driver']}' debe ser un número positivo")
+        if aj["driver"] == "tasa_impuestos":
+            exigir(aj["valor_nuevo"] < 0.6, f"ajuste {aj['objecion_ref']}: tasa_impuestos debe ser una fracción menor que 0,6")
+        if aj["driver"] == "ingresos0":
+            exigir((b.get("base_ingresos") or {}).get("metodo") != "ttm",
+                   f"ajuste {aj['objecion_ref']}: la base de ingresos ya son los últimos doce meses reportados "
+                   f"(hasta {(b.get('base_ingresos') or {}).get('fecha_fin')}); no se sustituye por estimaciones ni guidance")
         aplicados.append({"escenario": "todos", "driver": aj["driver"], "de": actual, "a": aj["valor_nuevo"],
                           "objecion_ref": aj["objecion_ref"]})
         b[aj["driver"]] = aj["valor_nuevo"]

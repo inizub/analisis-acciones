@@ -297,6 +297,10 @@ def evaluar(dp: dict, router: dict, modo: str, fase: str = "final", motor: dict 
             items[9] = punto_9(forense)
             items[10] = punto_10(dp, router["ruta"], motor, escenarios, cfg)
             items[12] = punto_12(escenarios, esperados)
+            if items[12]["estado"] == "fallo" and sintesis is None:
+                # Cierre anticipado por modelo no fiable: sin juez no hay síntesis, y eso no es otro fallo.
+                for n in (7, 8):
+                    items[n] = _no_evaluado("análisis cerrado antes del juez por modelo no fiable (punto 12)")
     fallos = [f"{n}. {NOMBRES[n]}: {r['detalle']}" for n, r in sorted(items.items()) if r["estado"] == "fallo"]
     avisos = [a for r in items.values() for a in ([r["aviso"]] if r.get("aviso") else []) + r.get("avisos", [])]
     return {"ticker": dp.get("ticker"), "modo": modo, "fase": fase, "ruta": router["ruta"], "pasa": not fallos,

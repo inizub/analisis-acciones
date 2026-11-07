@@ -25,8 +25,12 @@ Sigue `juez.md`:
 
 1. Verifica cada objeción contra el datapack y márcala `validada` o `rechazada`, con el motivo y el `dato_ref`.
 2. Cada objeción validada que cambia un input se convierte en una entrada de `RUN/ajustes.json`. Además de los
-   drivers de un escenario, puedes ajustar `ingresos0` (la base de ingresos del motor) con `analista` A, B, N o
-   `todos`, `escenario` `todos` y el `valor_anterior` exacto de `motor_inicial.json` (`base.ingresos0`).
+   drivers de un escenario, puedes ajustar dos inputs de la base del motor (`analista` A, B, N o `todos`,
+   `escenario` `todos` y el `valor_anterior` exacto de `motor_inicial.json`):
+   - `tasa_impuestos` (`base.tasa_impuestos`), solo con un dato con fuente (guidance o tipo efectivo reportado).
+   - `ingresos0` (`base.ingresos0`), solo si `base.base_ingresos.metodo` es `anual` (el motor no pudo calcular los
+     últimos doce meses) y con una cifra **reportada** con fuente (suma de trimestres publicados). Nunca con guidance,
+     previsiones ni trimestres supuestos: si el motor ya usa los doce meses reportados (`ttm`), el ajuste se rechaza.
 3. Si hay ajustes, puedes ver su efecto con:
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/analizando-acciones/scripts/py.sh" "${CLAUDE_PLUGIN_DATA}" motor/escenarios.py --analista RUN/analista_A.json --motor RUN/motor_inicial.json --ajustes RUN/ajustes.json`
    (y lo mismo con analista_B.json), sustituyendo RUN por la ruta completa. Ejecútalo tal cual, sin `cd`, `&&` ni

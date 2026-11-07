@@ -362,10 +362,10 @@ def ejecutar_escenarios(d: Path, modo: str) -> dict:
             con["percentiles_codigo"] = sin["percentiles_codigo"]
             comun.escribir_json(d / f"escenarios_{n}.json", con)
             hechos[n] = {"p_E1": con["probabilidades"]["E1"], "p_E1_sin_ajustes": sin["probabilidades"]["E1"],
-                         "ajustes": len(con["ajustes_aplicados"])}
+                         "ajustes": len(con["ajustes_aplicados"]), "modelo_fiable": con["cordura"]["fiable"]}
         else:
             comun.escribir_json(d / f"escenarios_{n}.json", sin)
-            hechos[n] = {"p_E1": sin["probabilidades"]["E1"]}
+            hechos[n] = {"p_E1": sin["probabilidades"]["E1"], "modelo_fiable": sin["cordura"]["fiable"]}
     if not hechos:
         raise FileNotFoundError("No hay salidas de analistas (analista_*.json)")
     return hechos

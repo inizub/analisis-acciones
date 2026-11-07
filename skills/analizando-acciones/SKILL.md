@@ -132,6 +132,10 @@ PY ejecucion.py escenarios --dir "RUN" --modo MODO
 
 Si `escenarios` falla por un analista inválido, ve al paso 9.
 
+**Cierre anticipado:** si en la salida de `escenarios` **todos** los analistas tienen `modelo_fiable: false`, el
+checklist (punto 12) va a cerrar el análisis como `no_analizable`: salta los pasos 6, 7 y 8 y ve directo al paso 9.
+No lances red team ni juez para un modelo que no es fiable.
+
 ### 6. Red team (solo completo)
 
 ```
