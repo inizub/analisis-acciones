@@ -68,3 +68,11 @@ def test_sha256(tmp_path):
     p.write_bytes(b"abc")
     assert comun.sha256_archivo(p) == "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     assert comun.sha256_texto("abc") == comun.sha256_archivo(p)
+
+
+def test_leer_json_acepta_cp1252_y_lo_reescribe_en_utf8(tmp_path):
+    f = tmp_path / "datos_agente.json"
+    f.write_bytes('{"nota": "computación de Data Center"}'.encode("cp1252"))
+    assert comun.leer_json(f) == {"nota": "computación de Data Center"}
+    assert f.read_bytes().decode("utf-8") == '{"nota": "computación de Data Center"}'      # ya en UTF-8
+    assert comun.leer_json(f) == {"nota": "computación de Data Center"}

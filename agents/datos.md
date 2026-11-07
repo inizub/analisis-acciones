@@ -15,6 +15,9 @@ El encargo te da el directorio de la ejecución (RUN), el ticker, el modo y la l
 Lee `RUN/datapack_base.json` (datos de EDGAR, precios y Damodaran ya obtenidos por código) y
 `${CLAUDE_PLUGIN_ROOT}/skills/analizando-acciones/references/esquemas.md` (sección datos_agente).
 
+Escribe `datos_agente.json` en **UTF-8** (por ejemplo, `json.dump(..., ensure_ascii=False)` abriendo el archivo con
+`encoding="utf-8"`): en Windows la codificación por defecto de Python no lo es.
+
 ## Qué buscar
 
 En este orden de preferencia de fuente: filings en la SEC (10-K, 10-Q, 20-F, 6-K), web de relación con inversores

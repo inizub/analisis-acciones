@@ -160,8 +160,17 @@ def es_desconocido(x: Any) -> bool:
 
 
 def leer_json(ruta: str | Path) -> Any:
-    with open(ruta, encoding="utf-8") as f:
-        return json.load(f)
+    """Lee un JSON en UTF-8. Los agentes que escriben desde Windows a veces lo dejan en cp1252: se acepta y se
+    reescribe en UTF-8 para que el resto de la cadena (y quien abra el archivo) lo lea sin problemas."""
+    ruta = Path(ruta)
+    datos = ruta.read_bytes()
+    try:
+        return json.loads(datos.decode("utf-8-sig"))
+    except UnicodeDecodeError:
+        texto = datos.decode("cp1252")        # un JSON válido en cp1252 que no lo es en UTF-8 es casi seguro de Windows
+        obj = json.loads(texto)
+        ruta.write_text(texto, encoding="utf-8", newline="")
+        return obj
 
 
 def volcar_json(obj: Any) -> str:
