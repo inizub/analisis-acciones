@@ -178,11 +178,13 @@ def datos(d: Path, clientes: dict | None = None) -> dict:
     r, faltan = _router_y_criticos(dp)
     inexistente = comun.es_desconocido(dp["empresa"]) and comun.es_desconocido(dp["precios"])
     modo = a.get("modo", "completo")
+    fuentes_caidas = sorted({c["campo"] for c in dp["campos_desconocidos"] if c.get("causa") == "source_down"})
     # Fuera de alcance por SIC o por historia insuficiente: no merece la pena buscar más datos.
     fuera = r["ruta"] == "fuera_de_alcance"
     pendientes = (not inexistente) and (not fuera) and trimestres_pendientes(dp)
     return {"ticker": ticker, "ruta_provisional": r["ruta"], "campos_criticos_faltan": faltan,
             "campos_desconocidos": dp["campos_desconocidos"], "ticker_inexistente": inexistente,
+            "fuentes_caidas": fuentes_caidas,
             "fuera_de_alcance": fuera, "trimestrales_pendientes": pendientes,
             "necesita_agente_datos": (not inexistente) and (not fuera)
             and (modo == "completo" or bool(faltan) or pendientes),
@@ -431,7 +433,13 @@ def cerrar(d: Path, modo: str, journal: Path, modelos: dict | None = None) -> di
     if cambios:
         raise ValueError(f"Salidas de la fase ciega modificadas después de congelarlas: {cambios}")
     dp = comun.leer_json(d / "datapack.json") if (d / "datapack.json").exists() else comun.leer_json(d / "datapack_base.json")
-    rt = comun.leer_json(d / "router.json")
+    if (d / "router.json").exists():
+        rt = comun.leer_json(d / "router.json")
+    else:
+        # Cierre anticipado (p. ej. ticker inexistente o fuentes caídas): el paso 4 nunca corrió, se clasifica aquí.
+        import router
+        rt = router.clasificar(dp)
+        comun.escribir_json(d / "router.json", rt)
     tiene_escenarios = all((d / f"escenarios_{n}.json").exists() for n in comun.analistas_de_modo(modo))
     if tiene_escenarios:
         banderas = agregar.cargar_banderas(d)
