@@ -6,8 +6,9 @@ Alternativa al plugin de Claude Code que corre en un chat de claude.ai. No susti
 ## Requisitos
 - Ejecución de código activada (Settings → Capabilities). Sin ella `lentes.py` no corre.
 - Conector Alpha Vantage (clave gratuita: 25 llamadas/día, 1/s, unas 4 acciones al día).
-- Opcionales: Twelve Data o FMP como segunda fuente de números (requieren un lector en `lentes.py`, hoy solo lee el
-  formato de Alpha Vantage) y Bigdata.com para verificar lo cualitativo en el paso del abogado del diablo.
+- Respaldo FMP (ya soportado en `lentes.py`): precios y estados de la acción. Limitaciones con el plan actual: 5 periodos
+  por estado, sin el ETF VT (el índice sale de Alpha Vantage) y sin historial de revisiones (lente vacía).
+- Opcionales: Bigdata.com para verificar lo cualitativo en el paso del abogado del diablo; Twelve Data (sin lector aún).
 
 ## Archivos
 - `SKILL.md`: instrucciones del skill (flujo, formato de respuesta, diario de predicciones).

@@ -29,6 +29,10 @@ discriminación (correlación a 3 años 0,077 → 0,039 → 0,009). Hacerlo ahor
   del script y una objeción solo cambia cifras si es un error de datos.
 - Solo empresas no financieras que informan en USD; datos mensuales; VT como sustituto de VWCE.
 - Requiere ejecución de código activada en claude.ai.
+- Respaldo FMP: los precios mensuales de FMP reproducen el resultado de Alpha Vantage (KO: exceso +3,87 % frente a
+  +3,87 %, p12 55,51 % frente a 55,51 %). Los estados de FMP se convierten por nombres de campo reales, probados con
+  muestras, pero no hay aún una ejecución completa con estados reales de FMP. Con el plan actual: 5 periodos por estado,
+  sin VT (el índice se refresca desde Alpha Vantage una vez al mes) y sin historial de revisiones.
 
 ## Dónde está
 `claude-ai/lentes.py`, `claude-ai/SKILL.md`, `claude-ai/README.md`; tests en `tests/test_lentes.py`.

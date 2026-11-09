@@ -49,6 +49,8 @@ Crea `trabajo/` con el script de la sección «lentes.py» (cópialo tal cual a 
 - Si una llamada devuelve error de límite, espera 2 s y repítela una vez. Si devuelve «premium endpoint» o sigue
   fallando, para y dilo: no sustituyas los datos por estimaciones.
 
+Si Alpha Vantage agota el límite diario, usa FMP para las piezas que falten (ver «Respaldo con FMP» abajo).
+
 Busca en la web el rendimiento del bono de EE. UU. a 10 años (FRED, Treasury o similar) y la prima de riesgo implícita
 de Damodaran más reciente (pages.stern.nyu.edu/~adamodar). Anota valor, fuente y fecha.
 
@@ -120,6 +122,28 @@ Si hay acceso a los documentos del Project, añade una fila a `claude/diario-pre
 `| fecha | ticker | precio | señal | p12 | partida | p36 | p_caída30 | exceso pp | versión lentes 1 |`
 Nunca edites filas anteriores. Si no hay acceso, da la fila al final de la respuesta para que el usuario la guarde.
 
+### Respaldo con FMP (cuando Alpha Vantage no responde por límite)
+
+Conector **FMP**. Con el plan actual el `limit` de los estados no puede pasar de 5 y el ETF VT no está disponible
+(«ACCESS DENIED»: no repitas la llamada con el mismo valor). El índice sigue saliendo de `datos/VT.csv` de Alpha Vantage:
+refréscalo una vez al mes; si su último mes no coincide con el de la acción, el script se detiene.
+
+| Herramienta y endpoint | Parámetros | Guardar como (en `datos/<T>/`) |
+|---|---|---|
+| `statements` · `income-statement` | `symbol`, `period` annual / quarter, `limit` 5 | `fmp_income_a.json` / `fmp_income_q.json` |
+| `statements` · `balance-sheet-statement` | igual | `fmp_balance_a.json` / `fmp_balance_q.json` |
+| `statements` · `cashflow-statement` | igual | `fmp_cash_a.json` / `fmp_cash_q.json` |
+| `analyst` · `financial-estimates` | `symbol`, `period` annual, `limit` 3 | `fmp_estimaciones.json` |
+| `chart` · `historical-price-eod-light` | `symbol`, `from_date` (hace 5 años), `to_date` (hoy) | `fmp_precio_light.json` |
+| `chart` · `historical-price-eod-dividend-adjusted` | igual | `fmp_precio_adj.json` |
+
+- Guarda cada respuesta completa tal cual: si el resultado se guardó en archivo, cópialo; si llegó dentro del chat,
+  escribe el JSON entero sin omitir, redondear ni reordenar nada. Un número copiado mal falsea la señal.
+- `lentes.py` convierte solo lo que falta, así que se puede mezclar (p. ej. precios de FMP y estados de Alpha Vantage).
+- Qué se pierde con FMP: el historial de revisiones del consenso (la lente queda vacía, sin peso, y la señal se acerca a
+  neutral; dilo en la respuesta), el crecimiento interanual de ventas TTM (solo hay 5 trimestres) y las acciones del
+  balance (se usan las diluidas medias del trimestre [O]).
+
 ## Qué significa cada lente
 
 | Lente | Mide | Por qué cuenta |
@@ -144,6 +168,11 @@ Uso:
 DATOS/TICKER contiene: income.json, balance.json, cashflow.json (respuestas completas de Alpha Vantage),
 estimaciones.json (ejercicios fiscales de EARNINGS_ESTIMATES) y precios.csv (fecha,cierre,cierre_ajustado; mensual,
 más reciente primero, ≥ 40 filas). VT.csv igual para el índice de referencia.
+
+Respaldo con FMP (si se acaban las llamadas de Alpha Vantage): guarda las respuestas de FMP como fmp_income_a.json,
+fmp_income_q.json, fmp_balance_a.json, fmp_balance_q.json, fmp_cash_a.json, fmp_cash_q.json, fmp_estimaciones.json,
+fmp_precio_light.json y fmp_precio_adj.json en DATOS/TICKER; el script los convierte solo a los archivos de arriba
+cuando faltan. FMP no trae historial de revisiones (esa lente queda vacía) y el plan gratuito limita los estados a 5 periodos.
 
 Todos los umbrales y pesos de PARAM son heurísticos [O] hasta calibrarlos con el diario.
 """
@@ -241,6 +270,106 @@ def cierre_sin_splits(pr):
     return out
 
 
+# ------------------------------------------------------------------ adaptador FMP
+def leer_json_fmp(p: Path):
+    """Lee una respuesta de FMP: lista JSON o el envoltorio [{"type":"text","text":"..."}] que guarda Claude."""
+    d = json.loads(p.read_text(encoding="utf-8"))
+    if isinstance(d, list) and d and isinstance(d[0], dict) and d[0].get("type") == "text" and "text" in d[0]:
+        d = json.loads(d[0]["text"])
+    if not isinstance(d, list) or not d:
+        raise SystemExit(f"{p.name}: respuesta de FMP vacía o no válida: {str(d)[:80]}")
+    return d
+
+
+def _s(x):
+    return None if x is None else str(x)
+
+
+def income_fmp(filas):
+    return [{"fiscalDateEnding": r["date"], "reportedCurrency": r.get("reportedCurrency"),
+             "totalRevenue": _s(r.get("revenue")), "grossProfit": _s(r.get("grossProfit")),
+             "operatingIncome": _s(r.get("operatingIncome")), "netIncome": _s(r.get("netIncome")),
+             "incomeTaxExpense": _s(r.get("incomeTaxExpense")), "incomeBeforeTax": _s(r.get("incomeBeforeTax")),
+             "interestExpense": _s(r.get("interestExpense")),
+             "depreciationAndAmortization": _s(r.get("depreciationAndAmortization"))} for r in filas]
+
+
+def balance_fmp(filas, income_filas):
+    """FMP no trae acciones en el balance: se toman las diluidas medias del resultado de la misma fecha [O]."""
+    acc = {r["date"]: r.get("weightedAverageShsOutDil") for r in income_filas}
+    return [{"fiscalDateEnding": r["date"], "totalAssets": _s(r.get("totalAssets")),
+             "totalShareholderEquity": _s(r.get("totalStockholdersEquity")),
+             "cashAndCashEquivalentsAtCarryingValue": _s(r.get("cashAndCashEquivalents")),
+             "cashAndShortTermInvestments": _s(r.get("cashAndShortTermInvestments")),
+             "shortTermInvestments": _s(r.get("shortTermInvestments")),
+             "shortLongTermDebtTotal": _s(r.get("totalDebt")),
+             "longTermDebt": _s(r.get("longTermDebt")), "shortTermDebt": _s(r.get("shortTermDebt")),
+             "commonStockSharesOutstanding": _s(acc.get(r["date"]))} for r in filas]
+
+
+def cash_fmp(filas):
+    out = []
+    for r in filas:
+        capex = f(r.get("capitalExpenditure"))
+        fco = r.get("netCashProvidedByOperatingActivities", r.get("operatingCashFlow"))
+        out.append({"fiscalDateEnding": r["date"], "operatingCashflow": _s(fco),
+                    "capitalExpenditures": None if capex is None else str(abs(capex)),
+                    "stockBasedCompensation": _s(r.get("stockBasedCompensation"))})
+    return out
+
+
+def estimaciones_fmp(filas, simbolo):
+    return {"symbol": simbolo, "fuente": "FMP", "estimates": [
+        {"horizon": "fiscal year", "date": r["date"], "eps_estimate_average": r.get("epsAvg"),
+         "revenue_estimate_average": r.get("revenueAvg"), "eps_estimate_analyst_count": r.get("numAnalystsEps")}
+        for r in filas]}
+
+
+def precios_fmp(light, adj):
+    """Diarios de FMP -> último día hábil de cada mes (el mes en curso, su última sesión). Reciente primero."""
+    aj = {r["date"]: r["adjClose"] for r in adj}
+    mes = {}
+    for r in light:
+        d = r["date"]
+        if d in aj and (d[:7] not in mes or d > mes[d[:7]][0]):
+            mes[d[:7]] = (d, float(r["price"]), float(aj[d]))
+    return sorted(mes.values(), reverse=True)
+
+
+def preparar_fmp(dir_: Path):
+    """Convierte los fmp_*.json de `dir_` a los archivos que lee analizar(), solo donde falta el de Alpha Vantage."""
+    hecho = []
+    ruta = lambda n: dir_ / n
+    inc_a = leer_json_fmp(ruta("fmp_income_a.json")) if ruta("fmp_income_a.json").exists() else None
+    inc_q = leer_json_fmp(ruta("fmp_income_q.json")) if ruta("fmp_income_q.json").exists() else None
+    for nom, ia_, iq_, fa, fq, fun in [
+            ("income.json", None, None, "fmp_income_a.json", "fmp_income_q.json", lambda x, _: income_fmp(x)),
+            ("balance.json", inc_a, inc_q, "fmp_balance_a.json", "fmp_balance_q.json", None),
+            ("cashflow.json", None, None, "fmp_cash_a.json", "fmp_cash_q.json", lambda x, _: cash_fmp(x))]:
+        if ruta(nom).exists() or not (ruta(fa).exists() and ruta(fq).exists()):
+            continue
+        A, Q = leer_json_fmp(ruta(fa)), leer_json_fmp(ruta(fq))
+        if nom == "balance.json":
+            if inc_a is None or inc_q is None:
+                raise SystemExit("para convertir el balance de FMP hacen falta también fmp_income_a.json y fmp_income_q.json")
+            A, Q = balance_fmp(A, inc_a), balance_fmp(Q, inc_q)
+        else:
+            A, Q = fun(A, None), fun(Q, None)
+        ruta(nom).write_text(json.dumps({"annualReports": A, "quarterlyReports": Q}), encoding="utf-8")
+        hecho.append(nom)
+    if not ruta("estimaciones.json").exists() and ruta("fmp_estimaciones.json").exists():
+        sim = (leer_json_fmp(ruta("fmp_estimaciones.json"))[0].get("symbol"))
+        ruta("estimaciones.json").write_text(json.dumps(estimaciones_fmp(leer_json_fmp(ruta("fmp_estimaciones.json")), sim)),
+                                             encoding="utf-8")
+        hecho.append("estimaciones.json")
+    if not ruta("precios.csv").exists() and ruta("fmp_precio_light.json").exists() and ruta("fmp_precio_adj.json").exists():
+        filas = precios_fmp(leer_json_fmp(ruta("fmp_precio_light.json")), leer_json_fmp(ruta("fmp_precio_adj.json")))
+        with ruta("precios.csv").open("w", encoding="utf-8", newline="") as fh:
+            w = csv.writer(fh); w.writerow(["fecha", "cierre", "cierre_ajustado"]); w.writerows(filas)
+        hecho.append("precios.csv")
+    return hecho
+
+
 # ------------------------------------------------------------------ cálculos
 def ttm(q, campo, desde=0):
     vals = [f(r.get(campo)) for r in q[desde:desde + 4]]
@@ -313,6 +442,9 @@ def analizar(dir_: Path, bench: Path, rf: float, erp: float, escenarios: dict | 
     pr = leer_precios(dir_ / "precios.csv")
     pv = leer_precios(bench)
     avisos = avisos_precios("acción", pr) + avisos_precios("índice", pv)
+    if pr[0][0][:7] != pv[0][0][:7]:
+        raise SystemExit(f"el índice ({pv[0][0]}) y la acción ({pr[0][0]}) deben terminar en el mismo mes: "
+                         "las rentabilidades se alinean por fila. Actualiza el archivo del índice.")
     faltan = []
 
     if iq[0]["fiscalDateEnding"] != bq[0]["fiscalDateEnding"] or iq[0]["fiscalDateEnding"] != cq[0]["fiscalDateEnding"]:
@@ -387,6 +519,9 @@ def analizar(dir_: Path, bench: Path, rf: float, erp: float, escenarios: dict | 
                        "cambio_bpa_90d": c_rev, "amplitud_30d": a_rev, "ejercicios": [e["date"] for e in fy]}
     if not fy:
         avisos.append("sin estimaciones de ejercicios futuros: lente de revisiones vacía")
+    elif c_rev is None and a_rev is None:
+        avisos.append("sin historial de revisiones (FMP solo da el consenso actual): lente de revisiones vacía y sin peso; "
+                      "la señal queda más cerca de neutral porque no se reparte su peso entre las demás")
 
     roic = ebit * (1 - t) / capital_invertido if capital_invertido > 0 else None
     gpa = bruto / activos if bruto is not None else None
@@ -526,8 +661,11 @@ def main():
     ap.add_argument("--rf", type=float, required=True); ap.add_argument("--erp", type=float, required=True)
     ap.add_argument("--escenarios"); ap.add_argument("--salida")
     a = ap.parse_args()
+    convertidos = preparar_fmp(Path(a.dir))
     esc = json.loads(Path(a.escenarios).read_text(encoding="utf-8")) if a.escenarios else None
     res = analizar(Path(a.dir), Path(a.bench), a.rf, a.erp, esc)
+    if convertidos:
+        res.setdefault("avisos", []).append("convertido desde FMP: " + ", ".join(convertidos))
     txt = json.dumps(res, ensure_ascii=False, indent=2, default=lambda x: None)
     if a.salida:
         Path(a.salida).write_text(txt, encoding="utf-8")
